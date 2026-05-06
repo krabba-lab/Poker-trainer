@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+
+<html lang="no">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GTO Hand Trainer – 9-max</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #f7f6f3; margin: 0; padding: 1rem; color: #1a1a1a; max-width: 520px; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 14px; }
+  .suit-H { color: #c0392b; }
+  .suit-D { color: #1a6ab5; }
+  .suit-C { color: #1d9e75; }
+  .suit-S { color: #5a5a7a; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: #e8e7e3; color: #666; margin-right: 5px; }
+  .badge.active { background: #1a1a1a; color: #fff; }
+  .section-label { font-size: 11px; color: #888; margin-bottom: 5px; margin-top: 12px; text-transform: uppercase; letter-spacing: 0.07em; }
+  .divider { border: none; border-top: 0.5px solid #ddd; margin: 12px 0; }
+  .hand-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 8px 0 12px; }
+  .card {
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 42px; height: 58px; border-radius: 6px; border: 1px solid #ddd;
+    background: #fff; font-size: 17px; font-weight: 600; margin: 2px;
+    line-height: 1.1;
+  }
+  .card .rank { font-size: 17px; }
+  .card .suit-sym { font-size: 13px; }
+  .card.back { background: repeating-linear-gradient(45deg,#dce6f5,#dce6f5 3px,#c8d8ef 3px,#c8d8ef 6px); }
+  .pot-info { font-size: 13px; color: #555; margin: 4px 0 10px; }
+  .action-btn {
+    padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid #ccc; background: #fff; color: #1a1a1a;
+    transition: background 0.1s; margin: 3px;
+  }
+  .action-btn:hover { background: #f0efec; }
+  .action-btn:disabled { opacity: 0.4; cursor: default; }
+  .action-btn.fold { border-color: #e24b4a; color: #e24b4a; }
+  .action-btn.call { border-color: #1d9e75; color: #1d9e75; }
+  .action-btn.raise { border-color: #378add; color: #378add; }
+  .action-btn.check { border-color: #ba7517; color: #ba7517; }
+  .result-good { background: #eaf3de; color: #3b6d11; border-radius: 8px; padding: 11px 14px; margin-top: 10px; font-size: 13px; line-height: 1.6; }
+  .result-ok   { background: #faeeda; color: #854f0b; border-radius: 8px; padding: 11px 14px; margin-top: 10px; font-size: 13px; line-height: 1.6; }
+  .result-bad  { background: #fcebeb; color: #a32d2d; border-radius: 8px; padding: 11px 14px; margin-top: 10px; font-size: 13px; line-height: 1.6; }
+  .next-btn { margin-top: 12px; padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; background: #1a1a1a; color: #fff; border: none; }
+  .next-btn:hover { opacity: 0.82; }
+  .new-hand-btn { margin-top: 12px; padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; background: #fff; color: #1a1a1a; border: 1px solid #ccc; margin-left: 6px; }
+  .new-hand-btn:hover { background: #f0efec; }
+  .score-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .score-card { background: #fff; border-radius: 8px; padding: 7px 14px; text-align: center; border: 0.5px solid #ddd; min-width: 60px; }
+  .score-card .num { font-size: 18px; font-weight: 500; }
+  .score-card .lbl { font-size: 10px; color: #888; }
+  .street-progress { display: flex; gap: 6px; margin-bottom: 14px; }
+  .street-dot { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: #e8e7e3; color: #888; }
+  .street-dot.done { background: #c0ddaf; color: #3b6d11; }
+  .street-dot.current { background: #1a1a1a; color: #fff; }
+  .summary-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 0.5px solid #eee; }
+  .summary-row:last-child { border-bottom: none; }
+  .tag-good { color: #3b6d11; font-weight: 500; }
+  .tag-ok { color: #854f0b; font-weight: 500; }
+  .tag-bad { color: #a32d2d; font-weight: 500; }
+  p.desc { font-size: 13px; color: #555; margin: 0 0 6px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<h1>GTO Hand Trainer – 9-max</h1>
+<div id="scoreboard"></div>
+<div id="app"></div>
+
+<script>
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const SUITS = {H:'♥',D:'♦',C:'♣',S:'♠'};
+const SUIT_CLASS = {H:'suit-H',D:'suit-D',C:'suit-C',S:'suit-S'};
+const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+const RV = Object.fromEntries(RANKS.map((r,i)=>[r,i]));
+
+let deck=[], usedCards=[];
+
+function shuffle() {
+  deck=[];
+  for(const r of RANKS) for(const s of Object.keys(SUITS)) deck.push(r+s);
+  for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
+  usedCards=[];
+}
+
+function deal(n) {
+  const out=[];
+  for(let i=0;i<n;i++){
+    const c=deck.find(x=>!usedCards.includes(x));
+    usedCards.push(c); out.push(c);
+  }
+  return out;
+}
+
+function cardHTML(c, size='normal') {
+  if(!c) return `<div class="card back"></div>`;
+  const r=c.slice(0,-1), s=c.slice(-1);
+  const fs = size==='small' ? 'font-size:13px;width:34px;height:46px' : '';
+  return `<div class="card ${SUIT_CLASS[s]}" style="${fs}"><span class="rank">${r}</span><span class="suit-sym">${SUITS[s]}</span></div>`;
+}
+
+function parseHand(hand) {
+  const r1=RV[hand[0].slice(0,-1)], r2=RV[hand[1].slice(0,-1)];
+  const [hi,lo] = r1>=r2?[hand[0],hand[1]]:[hand[1],hand[0]];
+  const suited=hand[0].slice(-1)===hand[1].slice(-1);
+  const hiR=hi.slice(0,-1), loR=lo.slice(0,-1);
+  const pair=hiR===loR;
+  return {hiR,loR,hiV:RV[hiR],loV:RV[loR],suited,pair,gap:RV[hiR]-RV[loR]};
+}
+
+function handLabel(h){if(h.pair)return h.hiR+h.hiR;return h.hiR+h.loR+(h.suited?'s':'o');}
+
+// ── HAND STRENGTH EVAL ────────────────────────────────────────────────────────
+function evalStrength(hand, board) {
+  const all=[...hand,...board];
+  const rVals=all.map(c=>RV[c.slice(0,-1)]);
+  const suitMap={};
+  all.forEach(c=>{const s=c.slice(-1);suitMap[s]=(suitMap[s]||0)+1;});
+  const cnt={};
+  rVals.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+  const vals=Object.values(cnt);
+  const flush=Object.values(suitMap).some(v=>v>=5);
+  const quad=vals.includes(4);
+  const trip=vals.includes(3);
+  const pairs=vals.filter(v=>v>=2).length;
+  const fhse=trip&&pairs>=2;
+  const hRanks=hand.map(c=>RV[c.slice(0,-1)]);
+  const boardRanks=board.map(c=>RV[c.slice(0,-1)]);
+  const boardMax=boardRanks.length>0?Math.max(...boardRanks):-1;
+  const boardCnt={};
+  boardRanks.forEach(v=>boardCnt[v]=(boardCnt[v]||0)+1);
+
+  // Straight detection
+  const allRankSet=[...new Set(rVals)].sort((a,b)=>a-b);
+  let straight=false;
+  for(let i=0;i<=allRankSet.length-5;i++){if(allRankSet[i+4]-allRankSet[i]===4&&new Set(allRankSet.slice(i,i+5)).size===5)straight=true;}
+  // Wheel
+  if(allRankSet.includes(12)&&allRankSet.includes(0)&&allRankSet.includes(1)&&allRankSet.includes(2)&&allRankSet.includes(3))straight=true;
+
+  // Flush draw (4 to flush)
+  const fDraw=Object.values(suitMap).some(v=>v===4);
+  // Open-ended straight draw
+  const sortedU=[...new Set(rVals)].sort((a,b)=>a-b);
+  let oesd=false;
+  for(let i=0;i<=sortedU.length-4;i++){if(sortedU[i+3]-sortedU[i]===3&&new Set(sortedU.slice(i,i+4)).size===4)oesd=true;}
+  // Gutshot
+  let gs=false;
+  for(let i=0;i<=sortedU.length-4;i++){if(sortedU[i+3]-sortedU[i]===4&&new Set(sortedU.slice(i,i+4)).size===4)gs=true;}
+
+  // Made hand category 0=air,1=pair,2=2pair,3=trip,4=straight,5=flush,6=FH,7=quads
+  let made=0;
+  if(pairs===1)made=1;
+  if(pairs>=2)made=2;
+  if(trip)made=3;
+  if(straight)made=4;
+  if(flush)made=5;
+  if(fhse)made=6;
+  if(quad)made=7;
+
+  // Top pair, overpair
+  const hMax=Math.max(...hRanks);
+  const hMin=Math.min(...hRanks);
+  const topPair=made===1&&hRanks.some(r=>r===boardMax)&&cnt[boardMax]>=2;
+  const overpair=made===1&&hMin>boardMax&&!boardRanks.includes(hMin);
+  const tptk=topPair&&hMax===boardMax;
+
+  // Draw strength
+  const strongDraw=fDraw||(oesd&&fDraw);
+  const weakDraw=oesd||gs;
+
+  // Overall strength label
+  let strength;
+  if(made>=6||quad)strength='monster';
+  else if(made===5||(made===4)||(made===3&&!fhse))strength='strong';
+  else if(made===2||overpair||(tptk&&hMax>=9))strength='medium';
+  else if(made===1&&!topPair&&!overpair)strength='weak-pair';
+  else if(made===0&&strongDraw)strength='draw';
+  else if(made===0&&weakDraw)strength='weak-draw';
+  else if(made===0)strength='air';
+  else strength='medium';
+
+  return {made,strength,topPair,overpair,tptk,fDraw,oesd,gs,boardMax,hMax,hMin,boardCnt};
+}
+
+// ── OPEN RANGES 9-MAX ─────────────────────────────────────────────────────────
+// Posisjoner: UTG(1) UTG+1(2) UTG+2(3) MP(4) HJ(5) CO(6) BTN(7) SB(8) BB(9)
+// UTG ~13%, UTG+1 ~14%, UTG+2 ~15%, MP ~17%, HJ ~20%, CO ~25%, BTN ~45%
+function rfiEval(hand, action, pos) {
+  const h=parseHand(hand);
+  const hl=handLabel(h);
+  const ranges = {
+    UTG:    h.pair&&h.hiV>=3 || h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===10&&h.loV===8)||(h.hiV===9&&h.loV===7)) || !h.suited&&((h.hiV>=12&&h.loV>=9)||(h.hiV===12&&h.loV>=10)||(h.hiV===13&&h.loV>=9)),
+    'UTG+1':h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=7)||(h.hiV>=11&&h.loV>=8)||(h.hiV>=10&&h.loV>=8)||(h.hiV===9&&h.loV>=7)) || !h.suited&&((h.hiV>=12&&h.loV>=9)||(h.hiV===13&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)),
+    'UTG+2':h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=7)||(h.hiV>=11&&h.loV>=8)||(h.hiV>=10&&h.loV>=7)||(h.hiV>=9&&h.loV>=7)) || !h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===13&&h.loV>=7)),
+    MP:     h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=6)||(h.hiV>=10&&h.loV>=7)||(h.hiV>=9&&h.loV>=6)) || !h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===13&&h.loV>=7)),
+    HJ:     h.pair||h.suited&&h.hiV>=8||(!h.suited&&h.hiV>=12&&h.loV>=7)||(!h.suited&&h.hiV>=11&&h.loV>=9)||h.suited&&h.hiV>=9&&h.loV>=6,
+    CO:     h.pair||(h.hiV>=9)||(h.suited&&h.hiV>=6)||(h.hiV>=10&&h.loV>=5),
+    BTN:    !(h.hiV<=3&&!h.suited&&!h.pair),
+    SB:     h.pair||(h.hiV>=9)||(h.suited&&h.hiV>=6)||(h.hiV>=10&&h.loV>=6),
+  };
+  const pct = {UTG:'~13%','UTG+1':'~14%','UTG+2':'~15%',MP:'~17%',HJ:'~20%',CO:'~25%',BTN:'~45%',SB:'~40%'};
+  const shouldOpen = ranges[pos]||false;
+  if(action==='Limp') return {q:'bad',msg:`✗ Limp er feil fra ${pos} – raise eller fold.`};
+  if(action==='Open 2.5bb'||action==='Open 3bb') {
+    if(shouldOpen) return {q:'good',msg:`✓ Riktig! ${hl} er i ${pos}-rangen (${pct[pos]}).`};
+    return {q:'bad',msg:`✗ ${hl} er for svak til å åpne fra ${pos} (${pct[pos]} range). Fold.`};
+  }
+  if(action==='Fold') {
+    if(!shouldOpen) return {q:'good',msg:`✓ Riktig fold fra ${pos}. ${hl} er ikke i åpne-rangen (${pct[pos]}).`};
+    return {q:'bad',msg:`✗ For tight fra ${pos}! ${hl} er i åpne-rangen (${pct[pos]}).`};
+  }
+}
+
+function make3betEval(pos, villain) {
+  return function(hand, action) {
+    const h=parseHand(hand);
+    const hl=handLabel(h);
+    const ip = ['BTN','CO','HJ'].includes(pos) && ['BB','SB'].includes(villain);
+    const premium=(h.hiV>=12&&h.loV>=10)||(h.hiV===12&&h.loV>=8)||(h.pair&&h.hiV>=10);
+    const blocker=h.suited&&h.hiV===12&&h.loV<=4;
+    const sbStyle = pos==='SB';
+    const callRange = !sbStyle && (h.pair||(h.hiV>=8&&h.loV>=4)||(h.suited&&h.hiV>=5)||(h.hiV>=10&&h.loV>=6));
+    const strong3bet = premium||(h.pair&&h.hiV>=7)||(h.hiV>=11&&h.loV>=9&&h.suited);
+    if(action==='3-bet til 9bb'||action==='3-bet til 8bb') {
+      if(premium||strong3bet) return {q:'good',msg:`✓ 3-bet for value fra ${pos}! ${hl} dominerer ${villain}-range.`};
+      if(blocker&&sbStyle) return {q:'good',msg:`✓ God 3-bet bluff med Axs-blocker fra SB.`};
+      if(callRange) return {q:'ok',msg:`~ ${hl} er vanligvis en call fra ${pos}, men kan 3-bettes som bluff.`};
+      return {q:'bad',msg:`✗ For svak til 3-bet fra ${pos}. Fold ${hl}.`};
+    }
+    if(action==='Call') {
+      if(sbStyle) return {q:'ok',msg:`~ GTO foretrekker 3-bet or fold fra SB. Flat-call OOP er svak strategi.`};
+      if(premium) return {q:'ok',msg:`~ Trap-call mulig, men GTO 3-better oftest ${hl} fra ${pos}.`};
+      if(callRange) return {q:'good',msg:`✓ Riktig call fra ${pos}. ${hl} er i call-rangen mot ${villain}.`};
+      return {q:'bad',msg:`✗ ${hl} er for svak. Fold fra ${pos}.`};
+    }
+    if(action==='Fold') {
+      if(premium) return {q:'bad',msg:`✗ Du folder premium hånd fra ${pos}! 3-bet ${hl}.`};
+      if(sbStyle&&!premium&&!blocker) return {q:'good',msg:`✓ Riktig fold fra SB. GTO er tight OOP.`};
+      if(!callRange&&!strong3bet) return {q:'good',msg:`✓ Riktig fold. ${hl} har ikke nok equity mot ${villain}-range.`};
+      return {q:'bad',msg:`✗ For tight fra ${pos}! ${hl} er i call-rangen.`};
+    }
+  };
+}
+
+// ── SCENARIO DEFINITIONS 9-MAX ────────────────────────────────────────────────
+const SCENARIOS = [
+  // ── RFI spots ──
+  {
+    tag:'RFI UTG', hero:'UTG', villain:'BB',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'Du er UTG (seat 1 av 9). Alle folder til deg.',
+    preflopActions:['Fold','Open 2.5bb','Limp'],
+    preflopEval(hand,action){return rfiEval(hand,action,'UTG');},
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'RFI UTG+1', hero:'UTG+1', villain:'BB',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'Du er UTG+1. UTG folder. Alle andre folder til deg.',
+    preflopActions:['Fold','Open 2.5bb','Limp'],
+    preflopEval(hand,action){return rfiEval(hand,action,'UTG+1');},
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'RFI UTG+2', hero:'UTG+2', villain:'BB',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'Du er UTG+2. UTG og UTG+1 folder. Alle andre folder til deg.',
+    preflopActions:['Fold','Open 2.5bb','Limp'],
+    preflopEval(hand,action){return rfiEval(hand,action,'UTG+2');},
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'RFI MP', hero:'MP', villain:'BB',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'Du er MP. UTG, UTG+1 og UTG+2 folder til deg.',
+    preflopActions:['Fold','Open 2.5bb','Limp'],
+    preflopEval(hand,action){return rfiEval(hand,action,'MP');},
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'RFI HJ', hero:'HJ', villain:'BB',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'Du er HJ. UTG, UTG+1, UTG+2 og MP folder til deg.',
+    preflopActions:['Fold','Open 2.5bb','Limp'],
+    preflopEval(hand,action){return rfiEval(hand,action,'HJ');},
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'RFI CO', hero:'CO', villain:'BB',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'Du er CO. UTG til HJ folder til deg. BTN, SB og BB sitter igjen.',
+    preflopActions:['Fold','Open 2.5bb','Limp'],
+    preflopEval(hand,action){return rfiEval(hand,action,'CO');},
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'RFI BTN', hero:'BTN', villain:'BB',
+    flopPos:'IP', flopPotBB:5.5,
+    preflopDesc:'Du er BTN. Alle folder til deg. SB og BB sitter igjen.',
+    preflopActions:['Fold','Open 2.5bb','Limp'],
+    preflopEval(hand,action){return rfiEval(hand,action,'BTN');},
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'IP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'IP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'IP','river',calcPot(5.5,p));},
+  },
+  // ── BB defense spots ──
+  {
+    tag:'BB vs BTN open', hero:'BB', villain:'BTN',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'BTN åpner til 2.5bb. SB folder. Du er i BB.',
+    preflopActions:['Fold','Call','3-bet til 9bb'],
+    preflopEval: make3betEval('BB','BTN'),
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'BB vs CO open', hero:'BB', villain:'CO',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'CO åpner til 2.5bb. BTN og SB folder. Du er i BB.',
+    preflopActions:['Fold','Call','3-bet til 9bb'],
+    preflopEval: make3betEval('BB','CO'),
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'BB vs UTG open', hero:'BB', villain:'UTG',
+    flopPos:'OOP', flopPotBB:5.5,
+    preflopDesc:'UTG åpner til 2.5bb. UTG+1 til SB folder. Du er i BB.',
+    preflopActions:['Fold','Call','3-bet til 9bb'],
+    preflopEval(hand,action) {
+      const h=parseHand(hand);
+      const hl=handLabel(h);
+      const premium=(h.hiV>=12&&h.loV>=10)||(h.hiV===12&&h.loV>=8)||(h.pair&&h.hiV>=11);
+      const callRange=(h.pair&&h.hiV>=2)||(h.suited&&h.hiV>=7)||(h.hiV>=11&&h.loV>=8)||(h.suited&&h.hiV>=9&&h.loV>=6);
+      const strong3bet=premium||(h.pair&&h.hiV>=9)||(h.hiV===12&&h.loV>=10&&h.suited);
+      if(action==='3-bet til 9bb') {
+        if(strong3bet) return {q:'good',msg:`✓ 3-bet for value mot UTG! ${hl} er topp av din range.`};
+        if(callRange) return {q:'ok',msg:`~ ${hl} er vanligvis en call mot UTG sin tette range (~13%).`};
+        return {q:'bad',msg:`✗ For svak til 3-bet mot UTG. Fold ${hl}.`};
+      }
+      if(action==='Call') {
+        if(premium) return {q:'ok',msg:`~ Trap-call mulig, men GTO 3-better oftest ${hl} mot UTG.`};
+        if(callRange) return {q:'good',msg:`✓ Riktig call. ${hl} er i BB call-rangen mot UTG.`};
+        return {q:'bad',msg:`✗ For svak mot UTG sin tette range (~13%). Fold ${hl}.`};
+      }
+      if(action==='Fold') {
+        if(!callRange&&!strong3bet) return {q:'good',msg:`✓ Riktig fold. UTG åpner ~13% – ${hl} har ikke nok equity.`};
+        return {q:'bad',msg:`✗ For tight. ${hl} er i call-rangen mot UTG.`};
+      }
+    },
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(5.5,p));},
+  },
+  // ── SB spots ──
+  {
+    tag:'SB vs BTN open', hero:'SB', villain:'BTN',
+    flopPos:'OOP', flopPotBB:6,
+    preflopDesc:'BTN åpner til 2.5bb. Du er i SB. BB sitter igjen.',
+    preflopActions:['Fold','Call','3-bet til 9bb'],
+    preflopEval: make3betEval('SB','BTN'),
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'OOP','flop',6);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'OOP','turn',calcPot(6,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'OOP','river',calcPot(6,p));},
+  },
+  // ── Facing opens IP ──
+  {
+    tag:'BTN vs CO open', hero:'BTN', villain:'CO',
+    flopPos:'IP', flopPotBB:5.5,
+    preflopDesc:'CO åpner til 2.5bb. HJ folder. Du er BTN. SB og BB sitter igjen.',
+    preflopActions:['Fold','Call','3-bet til 8bb'],
+    preflopEval: make3betEval('BTN','CO'),
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'IP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'IP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'IP','river',calcPot(5.5,p));},
+  },
+  {
+    tag:'CO vs HJ open', hero:'CO', villain:'HJ',
+    flopPos:'IP', flopPotBB:5.5,
+    preflopDesc:'HJ åpner til 2.5bb. Du er CO. BTN, SB og BB sitter igjen.',
+    preflopActions:['Fold','Call','3-bet til 8bb'],
+    preflopEval: make3betEval('CO','HJ'),
+    flopActions:['Check','Bet 33%','Bet 75%'],
+    flopEval(h,b,a){return postflopEval(h,b,a,'IP','flop',5.5);},
+    turnActions:['Check','Bet 50%','Bet 100%'],
+    turnEval(h,b,a,p){return postflopEval(h,b,a,'IP','turn',calcPot(5.5,p));},
+    riverActions:['Check','Bet 33%','Bet 75%','Bet 120%'],
+    riverEval(h,b,a,p){return postflopEval(h,b,a,'IP','river',calcPot(5.5,p));},
+  },
+];
+
+function calcPot(startPot, prevActions) {
+  let pot=startPot;
+  for(const a of prevActions) {
+    const m=a.match(/(\d+)%/);
+    if(m) pot+=pot*(parseInt(m[1])/100)*2;
+  }
+  return Math.round(pot*10)/10;
+}
+
+// ── POST-FLOP GTO LOGIC ───────────────────────────────────────────────────────
+function postflopEval(hand,board,action,pos,street,pot) {
+  const s=evalStrength(hand,board);
+  const h=parseHand(hand);
+  const hl=handLabel(h);
+  const ip=pos==='IP';
+
+  // Normalize action
+  const isBet=action.includes('Bet');
+  const isCheck=action==='Check';
+  const pct=isBet?parseInt(action.match(/(\d+)%/)[1]):0;
+
+  // ── MONSTER / STRONG ──
+  if(s.strength==='monster'||s.strength==='strong') {
+    if(isBet&&pct>=50) return {q:'good',msg:`✓ Value bet med sterk hånd (${hl}). God sizing.`};
+    if(isBet&&pct<50) return {q:'ok',msg:`~ Small bet er mulig med sterk hånd for å holde range bred, men 50–75% gir mer value.`};
+    if(isCheck) {
+      if(ip&&street==='flop') return {q:'ok',msg:`~ Slow-play er mulig med ${hl}, men GTO foretrekker å bette for value IP.`};
+      if(!ip) return {q:'ok',msg:`~ Check-raise er del av GTO-strategien OOP med sterk hånd – men bet er også riktig.`};
+      return {q:'ok',msg:`~ Check er mulig som slow-play, men bet for value er oftest bedre.`};
+    }
+  }
+
+  // ── MEDIUM (2pair, overpair, TPTK) ──
+  if(s.strength==='medium') {
+    if(isBet&&pct>=33&&pct<=75) return {q:'good',msg:`✓ Value bet med medium hånd (${hl}). God sizing.`};
+    if(isBet&&pct>75) return {q:'ok',msg:`~ Litt stor sizing med medium hånd. 50–75% er bedre.`};
+    if(isCheck) {
+      if(ip) return {q:'ok',msg:`~ Check er mulig for pot control, men ${hl} fortjener en bet IP.`};
+      return {q:'good',msg:`✓ Check OOP med medium hånd er solid – du unngår å bli raised av sterkere hender.`};
+    }
+  }
+
+  // ── DRAW ──
+  if(s.strength==='draw'||s.strength==='weak-draw') {
+    const strongDraw=s.fDraw;
+    if(isBet&&pct<=50&&strongDraw) return {q:'good',msg:`✓ Semi-bluff med flush draw – bra! Du har fold equity og draw equity.`};
+    if(isBet&&pct>50&&strongDraw) return {q:'ok',msg:`~ Semi-bluff er riktig, men litt stor sizing. 33–50% er mer standard.`};
+    if(isBet&&!strongDraw&&pct<=33) return {q:'ok',msg:`~ Semi-bluff med svak draw kan fungere, men avhenger av fold equity.`};
+    if(isBet&&!strongDraw&&pct>33) return {q:'bad',msg:`✗ For stor semi-bluff uten sterk draw. Check er tryggere.`};
+    if(isCheck) {
+      if(strongDraw&&ip) return {q:'ok',msg:`~ Check med sterk draw er mulig (pot control), men semi-bluff er ofte bedre IP.`};
+      if(!strongDraw) return {q:'good',msg:`✓ Check med svak draw er defensivt riktig.`};
+      return {q:'ok',msg:`~ Check er akseptabelt, men du mister litt EV mot en draw.`};
+    }
+  }
+
+  // ── WEAK PAIR ──
+  if(s.strength==='weak-pair') {
+    if(isCheck) return {q:'good',msg:`✓ Check med svak par er riktig – du vil ikke bygge pot uten god equity.`};
+    if(isBet&&pct<=33) return {q:'ok',msg:`~ Thin value/bluff med svak par kan fungere, men check er mer standard.`};
+    if(isBet&&pct>33) return {q:'bad',msg:`✗ For stor bet med svak par. Check er bedre – du vil ikke bli raised.`};
+  }
+
+  // ── AIR ──
+  if(s.strength==='air') {
+    if(isCheck) {
+      if(ip&&street==='river') return {q:'good',msg:`✓ Check back på river med air er riktig – du vinner ingenting ved å bluff her.`};
+      return {q:'good',msg:`✓ Check med air er riktig. Ingen fold equity og ingen equity.`};
+    }
+    if(isBet) {
+      if(street==='river'&&pct>=75) return {q:'ok',msg:`~ Polarisert bluff på river med air kan være GTO, men krever god read på range.`};
+      if(street!=='river'&&pct<=33) return {q:'ok',msg:`~ Semi-bluff/bluff med air er mulig tidlig i hånden, men riskabelt uten equity.`};
+      return {q:'bad',msg:`✗ Bluff med air uten plan er risikabelt. Check er tryggere.`};
+    }
+  }
+
+  return {q:'ok',msg:'Akseptabelt valg.'};
+}
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let score={correct:0,ok:0,wrong:0};
+let state={}; // {phase, scenario, hand, board, prevActions, handScore}
+
+function newHand() {
+  shuffle();
+  const sc=SCENARIOS[Math.floor(Math.random()*SCENARIOS.length)];
+  const hand=deal(2);
+  state={
+    phase:'preflop', scenario:sc,
+    hand, board:[], prevActions:[], handScore:[],
+    continueHand:false,
+  };
+  renderPhase();
+}
+
+function renderPhase() {
+  updateScore();
+  const {phase,scenario,hand,board}=state;
+  const streets=['preflop','flop','turn','river'];
+  const si=streets.indexOf(phase);
+
+  // Progress bar
+  const progress=streets.map((s,i)=>`<span class="street-dot ${i<si?'done':i===si?'current':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
+
+  let html=`<div class="street-progress">${progress}</div>`;
+  html+=`<div class="info-row"><span class="badge active">${scenario.tag}</span><span class="badge">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
+
+  // Hand cards
+  html+=`<div class="section-label">Din hånd</div><div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}`;
+
+  // Board
+  if(board.length>0) {
+    html+=`<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`;
+  }
+  html+=`</div>`;
+
+  // Description + pot
+  let desc='', actions=[], evalFn;
+  if(phase==='preflop') {
+    desc=scenario.preflopDesc;
+    actions=scenario.preflopActions;
+    evalFn=(a)=>scenario.preflopEval(hand,a);
+  } else if(phase==='flop') {
+    desc=`Du er ${scenario.flopPos==='IP'?'IP (in position)':'OOP (out of position)'}. Pot: ${scenario.flopPotBB}bb.`;
+    actions=scenario.flopActions;
+    evalFn=(a)=>scenario.flopEval(hand,board,a);
+  } else if(phase==='turn') {
+    const pot=calcPot(scenario.flopPotBB,state.prevActions.slice(1));
+    desc=`Turn. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}. Pot: ~${pot}bb.`;
+    actions=scenario.turnActions;
+    evalFn=(a)=>scenario.turnEval(hand,board,a,state.prevActions);
+  } else {
+    const pot=calcPot(scenario.flopPotBB,state.prevActions.slice(1));
+    desc=`River. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}. Pot: ~${pot}bb.`;
+    actions=scenario.riverActions;
+    evalFn=(a)=>scenario.riverEval(hand,board,a,state.prevActions);
+  }
+
+  html+=`<p class="desc">${desc}</p>`;
+  html+=`<hr class="divider"/>`;
+  html+=`<div class="section-label">Hva gjør du?</div>`;
+  html+=`<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
+  html+=`<div id="result"></div>`;
+
+  document.getElementById('app').innerHTML=html;
+  state._evalFn=evalFn;
+}
+
+function answer(act) {
+  const res=state._evalFn(act);
+  if(!res) { console.error('evalFn returned undefined for action:', act); return; }
+  state.prevActions.push(act);
+  state.handScore.push(res.q);
+
+  if(res.q==='good') score.correct++;
+  else if(res.q==='ok') score.ok++;
+  else score.wrong++;
+
+  const cls=res.q==='good'?'result-good':res.q==='ok'?'result-ok':'result-bad';
+  document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
+
+  const streets=['preflop','flop','turn','river'];
+  const si=streets.indexOf(state.phase);
+  const nextStreet=streets[si+1];
+  const isFold=act.toLowerCase()==='fold';
+  const isPreflopFold=state.phase==='preflop'&&isFold;
+  const isLastStreet=state.phase==='river'||isFold;
+
+  let btns='';
+  if(!isLastStreet&&!isPreflopFold) {
+    btns+=`<button class="next-btn" onclick="nextStreet('${nextStreet}')">Neste: ${nextStreet.charAt(0).toUpperCase()+nextStreet.slice(1)} →</button>`;
+  }
+  btns+=`<button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
+  if(isLastStreet||isPreflopFold) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
+
+  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div>${btns}`;
+  updateScore();
+}
+
+function nextStreet(street) {
+  if(street==='flop') {
+    state.board=deal(3);
+  } else if(street==='turn'||street==='river') {
+    state.board=[...state.board,...deal(1)];
+  }
+  state.phase=street;
+  renderPhase();
+}
+
+function showSummary() {
+  const {handScore,scenario,hand,board}=state;
+  const streets=['Preflop','Flop','Turn','River'];
+  const labels={good:'✓ Riktig',ok:'~ Marginal',bad:'✗ Feil'};
+  const cls={good:'tag-good',ok:'tag-ok',bad:'tag-bad'};
+  let rows='';
+  handScore.forEach((q,i)=>{
+    rows+=`<div class="summary-row"><span>${streets[i]||'Street '+(i+1)}</span><span class="${cls[q]}">${labels[q]}</span></div>`;
+  });
+  const good=handScore.filter(q=>q==='good').length;
+  const total=handScore.length;
+  document.getElementById('app').innerHTML=`
+    <div class="section-label">Håndoppsummering</div>
+    <div style="background:#fff;border-radius:10px;border:0.5px solid #ddd;padding:12px 16px;margin-bottom:12px">
+      ${rows}
+      <div style="margin-top:10px;font-size:13px;color:#555">Riktige beslutninger: <strong>${good}/${total}</strong></div>
+    </div>
+    <div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}${board.length?`<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`:''}</div>
+    <button class="next-btn" onclick="newHand()" style="margin-top:14px">Ny hånd</button>
+  `;
+  updateScore();
+}
+
+function btnClass(a) {
+  const l=a.toLowerCase();
+  if(l==='check') return 'check';
+  if(l.startsWith('fold')) return 'fold';
+  if(l.startsWith('call')) return 'call';
+  if(l.includes('bet')||l.includes('open')||l.startsWith('raise')||l.startsWith('3-bet')||l.startsWith('4-bet')||l.startsWith('donk')) return 'raise';
+  return '';
+}
+
+function updateScore() {
+  const total=score.correct+score.ok+score.wrong;
+  if(total===0){document.getElementById('scoreboard').innerHTML='';return;}
+  document.getElementById('scoreboard').innerHTML=`
+    <div class="score-row">
+      <div class="score-card"><div class="num" style="color:#3b6d11">${score.correct}</div><div class="lbl">Riktig</div></div>
+      <div class="score-card"><div class="num" style="color:#854f0b">${score.ok}</div><div class="lbl">Marginal</div></div>
+      <div class="score-card"><div class="num" style="color:#a32d2d">${score.wrong}</div><div class="lbl">Feil</div></div>
+    </div>`;
+}
+
+newHand();
+</script>
+
+</body>
+</html>
