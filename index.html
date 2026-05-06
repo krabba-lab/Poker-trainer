@@ -59,11 +59,34 @@
   .tag-good { color: #3b6d11; font-weight: 500; }
   .tag-ok { color: #854f0b; font-weight: 500; }
   .tag-bad { color: #a32d2d; font-weight: 500; }
-  p.desc { font-size: 13px; color: #555; margin: 0 0 6px; line-height: 1.5; }
+  .dark-toggle { background: none; border: 1px solid #ccc; border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer; color: #666; float: right; margin-top: 2px; }
+  body.dark { background: #141414; color: #e0e0e0; }
+  body.dark .badge { background: #2a2a2a; color: #aaa; }
+  body.dark .badge.active { background: #e0e0e0; color: #141414; }
+  body.dark .card { background: #1e1e1e; border-color: #333; }
+  body.dark .action-btn { background: #1e1e1e; border-color: #444; color: #e0e0e0; }
+  body.dark .action-btn:hover { background: #2a2a2a; }
+  body.dark .action-btn.fold { border-color: #e24b4a; color: #e24b4a; }
+  body.dark .action-btn.call { border-color: #1d9e75; color: #1d9e75; }
+  body.dark .action-btn.raise { border-color: #378add; color: #378add; }
+  body.dark .action-btn.check { border-color: #ba7517; color: #ba7517; }
+  body.dark .score-card { background: #1e1e1e; border-color: #333; }
+  body.dark .street-dot { background: #2a2a2a; color: #888; }
+  body.dark .street-dot.done { background: #2a4a1e; color: #7ec850; }
+  body.dark .street-dot.current { background: #e0e0e0; color: #141414; }
+  body.dark .divider { border-color: #333; }
+  body.dark .result-good { background: #1a2e10; color: #7ec850; }
+  body.dark .result-ok   { background: #2e1f08; color: #e8a44a; }
+  body.dark .result-bad  { background: #2e0f0f; color: #e86060; }
+  body.dark .next-btn { background: #e0e0e0; color: #141414; }
+  body.dark .new-hand-btn { background: #1e1e1e; color: #e0e0e0; border-color: #444; }
+  body.dark .new-hand-btn:hover { background: #2a2a2a; }
+  body.dark .summary-row { border-color: #333; }
+  body.dark .dark-toggle { border-color: #444; color: #aaa; }
 </style>
 </head>
 <body>
-<h1>GTO Hand Trainer – 9-max</h1>
+<h1>GTO Hand Trainer – 9-max <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Mørk</button></h1>
 <div id="scoreboard"></div>
 <div id="app"></div>
 
@@ -455,10 +478,24 @@ function postflopEval(hand,board,action,pos,street,pot) {
   const hl=handLabel(h);
   const ip=pos==='IP';
 
-  // Normalize action
   const isBet=action.includes('Bet');
   const isCheck=action==='Check';
   const pct=isBet?parseInt(action.match(/(\d+)%/)[1]):0;
+
+  // ── Combo: pair + draw (mid/bottom pair + OESD or flush draw) ──
+  const hasDraw = s.fDraw || s.oesd || s.gs;
+  const hasPair = s.made >= 1;
+  const pairAndDraw = hasPair && hasDraw && s.strength === 'weak-pair';
+  const strongCombo = hasPair && (s.fDraw || s.oesd); // mid pair + strong draw
+
+  if(pairAndDraw) {
+    if(isBet&&pct<=50) return {q:'good',msg:`✓ Bra! ${hl} med par + draw er en sterk semi-value hånd. Bet for thin value og draw equity.`};
+    if(isBet&&pct>50) return {q:'ok',msg:`~ Du kan bette, men litt stor sizing med par + draw. 33–50% er bedre.`};
+    if(isCheck) {
+      if(ip) return {q:'ok',msg:`~ Check er mulig, men ${hl} med par og draw har nok equity til å bette IP.`};
+      return {q:'ok',msg:`~ Check er trygt OOP, men par + draw kan bettes for thin value. Mix strategi.`};
+    }
+  }
 
   // ── MONSTER / STRONG ──
   if(s.strength==='monster'||s.strength==='strong') {
@@ -481,37 +518,37 @@ function postflopEval(hand,board,action,pos,street,pot) {
     }
   }
 
-  // ── DRAW ──
+  // ── DRAW (no pair) ──
   if(s.strength==='draw'||s.strength==='weak-draw') {
-    const strongDraw=s.fDraw;
-    if(isBet&&pct<=50&&strongDraw) return {q:'good',msg:`✓ Semi-bluff med flush draw – bra! Du har fold equity og draw equity.`};
+    const strongDraw=s.fDraw||s.oesd;
+    if(isBet&&pct<=50&&strongDraw) return {q:'good',msg:`✓ Semi-bluff med sterk draw (${hl}) – bra! Fold equity + draw equity.`};
     if(isBet&&pct>50&&strongDraw) return {q:'ok',msg:`~ Semi-bluff er riktig, men litt stor sizing. 33–50% er mer standard.`};
-    if(isBet&&!strongDraw&&pct<=33) return {q:'ok',msg:`~ Semi-bluff med svak draw kan fungere, men avhenger av fold equity.`};
-    if(isBet&&!strongDraw&&pct>33) return {q:'bad',msg:`✗ For stor semi-bluff uten sterk draw. Check er tryggere.`};
+    if(isBet&&!strongDraw&&pct<=33) return {q:'ok',msg:`~ Semi-bluff med gutshot kan fungere, men avhenger av fold equity.`};
+    if(isBet&&!strongDraw&&pct>33) return {q:'bad',msg:`✗ For stor semi-bluff med svak draw. Check er tryggere.`};
     if(isCheck) {
-      if(strongDraw&&ip) return {q:'ok',msg:`~ Check med sterk draw er mulig (pot control), men semi-bluff er ofte bedre IP.`};
-      if(!strongDraw) return {q:'good',msg:`✓ Check med svak draw er defensivt riktig.`};
-      return {q:'ok',msg:`~ Check er akseptabelt, men du mister litt EV mot en draw.`};
+      if(strongDraw&&ip) return {q:'ok',msg:`~ Check med sterk draw er mulig, men semi-bluff er ofte bedre IP.`};
+      if(!strongDraw) return {q:'good',msg:`✓ Check med gutshot er defensivt riktig.`};
+      return {q:'ok',msg:`~ Check er akseptabelt OOP med draw.`};
     }
   }
 
-  // ── WEAK PAIR ──
+  // ── WEAK PAIR (no draw) ──
   if(s.strength==='weak-pair') {
-    if(isCheck) return {q:'good',msg:`✓ Check med svak par er riktig – du vil ikke bygge pot uten god equity.`};
-    if(isBet&&pct<=33) return {q:'ok',msg:`~ Thin value/bluff med svak par kan fungere, men check er mer standard.`};
-    if(isBet&&pct>33) return {q:'bad',msg:`✗ For stor bet med svak par. Check er bedre – du vil ikke bli raised.`};
+    if(isCheck) return {q:'good',msg:`✓ Check med svak par uten draw er riktig – du vil ikke bygge pot her.`};
+    if(isBet&&pct<=33) return {q:'ok',msg:`~ Thin value med svak par kan fungere, men check er mer standard.`};
+    if(isBet&&pct>33) return {q:'bad',msg:`✗ For stor bet med svak par. Check er bedre.`};
   }
 
   // ── AIR ──
   if(s.strength==='air') {
     if(isCheck) {
-      if(ip&&street==='river') return {q:'good',msg:`✓ Check back på river med air er riktig – du vinner ingenting ved å bluff her.`};
-      return {q:'good',msg:`✓ Check med air er riktig. Ingen fold equity og ingen equity.`};
+      if(ip&&street==='river') return {q:'good',msg:`✓ Check back på river med air – riktig.`};
+      return {q:'good',msg:`✓ Check med air er riktig. Ingen equity.`};
     }
     if(isBet) {
-      if(street==='river'&&pct>=75) return {q:'ok',msg:`~ Polarisert bluff på river med air kan være GTO, men krever god read på range.`};
-      if(street!=='river'&&pct<=33) return {q:'ok',msg:`~ Semi-bluff/bluff med air er mulig tidlig i hånden, men riskabelt uten equity.`};
-      return {q:'bad',msg:`✗ Bluff med air uten plan er risikabelt. Check er tryggere.`};
+      if(street==='river'&&pct>=75) return {q:'ok',msg:`~ Polarisert bluff på river kan være GTO, men krever god range-read.`};
+      if(street!=='river'&&pct<=33) return {q:'ok',msg:`~ Bluff uten equity er risikabelt, men lav sizing kan fungere.`};
+      return {q:'bad',msg:`✗ Bluff med air uten plan. Check er tryggere.`};
     }
   }
 
@@ -744,6 +781,16 @@ function updateScore() {
       <div class="score-card"><div class="num" style="color:#854f0b">${score.ok}</div><div class="lbl">Marginal</div></div>
       <div class="score-card"><div class="num" style="color:#a32d2d">${score.wrong}</div><div class="lbl">Feil</div></div>
     </div>`;
+}
+
+function toggleDark() {
+  const dark = document.body.classList.toggle('dark');
+  document.getElementById('darkBtn').textContent = dark ? '☀️ Lys' : '🌙 Mørk';
+  localStorage.setItem('dark', dark ? '1' : '0');
+}
+if(localStorage.getItem('dark')==='1') {
+  document.body.classList.add('dark');
+  document.getElementById('darkBtn').textContent='☀️ Lys';
 }
 
 newHand();
