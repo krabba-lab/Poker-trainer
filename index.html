@@ -534,6 +534,80 @@ function newHand() {
   renderPhase();
 }
 
+// ── TABLE VISUALIZATION ───────────────────────────────────────────────────────
+// 9-max seat positions (clockwise): BTN(top-right), CO, HJ, MP, UTG+2, UTG+1, UTG(bottom), BB, SB
+const SEAT_POSITIONS = [
+  {pos:'BTN', x:72, y:8},
+  {pos:'CO',  x:90, y:28},
+  {pos:'HJ',  x:90, y:55},
+  {pos:'MP',  x:78, y:76},
+  {pos:'UTG+2',x:55,y:86},
+  {pos:'UTG+1',x:32,y:76},
+  {pos:'UTG', x:18, y:55},
+  {pos:'BB',  x:10, y:28},
+  {pos:'SB',  x:28, y:8},
+];
+
+function tableHTML(scenario) {
+  const hero=scenario.hero;
+  const villain=scenario.villain;
+
+  // Who folded preflop based on scenario description
+  const allPos=['UTG','UTG+1','UTG+2','MP','HJ','CO','BTN','SB','BB'];
+  const heroIdx=allPos.indexOf(hero);
+  const villainIdx=allPos.indexOf(villain);
+
+  // Seats that acted (folded) before hero in RFI spots, or between opener and hero in facing-open spots
+  function seatStatus(pos) {
+    if(pos===hero) return 'hero';
+    if(pos===villain) return 'villain';
+    const idx=allPos.indexOf(pos);
+
+    // RFI scenario: hero is first to act or opening - no one has folded yet
+    // villain is BB (or no villain), meaning hero is raising first in
+    const isRFI = !scenario.villain || scenario.tag.startsWith('RFI');
+    if(isRFI) return 'active';
+
+    // Facing open: villain opened before hero
+    // Seats between UTG and villain (exclusive) folded
+    // Seats after hero (BTN, SB, BB) are still active
+    if(idx < villainIdx) return 'folded'; // folded before villain opened
+    if(idx > villainIdx && idx < heroIdx) return 'folded'; // folded between villain and hero
+    return 'active';
+  }
+
+  const seats = SEAT_POSITIONS.map(({pos,x,y})=>{
+    const status=seatStatus(pos);
+    const isHero=status==='hero';
+    const isVillain=status==='villain';
+    const isFolded=status==='folded';
+    const bg=isHero?'#1a1a1a':isVillain?'#378add':isFolded?'#e0e0e0':'#fff';
+    const color=isHero?'#fff':isVillain?'#fff':isFolded?'#aaa':'#555';
+    const border=isHero?'none':isVillain?'none':'1px solid #ccc';
+    const label=pos==='UTG+2'?'U+2':pos==='UTG+1'?'U+1':pos;
+    return `<div style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
+      background:${bg};color:${color};border:${border};
+      border-radius:20px;padding:3px 7px;font-size:10px;font-weight:500;white-space:nowrap;
+      box-shadow:${isHero?'0 2px 6px rgba(0,0,0,0.3)':isVillain?'0 2px 6px rgba(55,138,221,0.4)':'none'};
+      ">${label}${isHero?' ★':''}</div>`;
+  }).join('');
+
+  // Dealer button position - always near BTN
+  return `
+  <div style="position:relative;width:100%;padding-bottom:52%;margin:10px 0;">
+    <div style="position:absolute;inset:0;background:#2d7a3a;border-radius:50%;border:3px solid #1e5c2a;box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);">
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:rgba(255,255,255,0.15);font-size:11px;text-align:center;letter-spacing:1px;">9-MAX</div>
+    </div>
+    ${seats}
+  </div>
+  <div style="display:flex;gap:10px;font-size:11px;margin-bottom:8px;flex-wrap:wrap;">
+    <span><span style="display:inline-block;width:10px;height:10px;background:#1a1a1a;border-radius:50%;margin-right:4px"></span>Du</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:#378add;border-radius:50%;margin-right:4px"></span>Motstander</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:#e0e0e0;border:1px solid #ccc;border-radius:50%;margin-right:4px"></span>Foldet</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:#fff;border:1px solid #ccc;border-radius:50%;margin-right:4px"></span>Aktiv</span>
+  </div>`;
+}
+
 function renderPhase() {
   updateScore();
   const {phase,scenario,hand,board}=state;
@@ -545,6 +619,7 @@ function renderPhase() {
 
   let html=`<div class="street-progress">${progress}</div>`;
   html+=`<div class="info-row"><span class="badge active">${scenario.tag}</span><span class="badge">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
+  html+=tableHTML(scenario);
 
   // Hand cards
   html+=`<div class="section-label">Din hånd</div><div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}`;
