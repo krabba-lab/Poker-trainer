@@ -83,10 +83,15 @@
   body.dark .new-hand-btn:hover { background: #2a2a2a; }
   body.dark .summary-row { border-color: #333; }
   body.dark .dark-toggle { border-color: #444; color: #aaa; }
+  body.dark { --range-bg: #1e1e1e; --range-border: #333; }
 </style>
 </head>
 <body>
-<h1>GTO Hand Trainer – 9-max <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Mørk</button></h1>
+<h1>Poker Trainer <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Mørk</button></h1>
+<div id="mode-toggle" style="display:flex;gap:0;margin-bottom:14px;border-radius:8px;overflow:hidden;border:1px solid #ccc;width:fit-content">
+  <button id="btn-gto" onclick="setMode('gto')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#1a1a1a;color:#fff">GTO</button>
+  <button id="btn-exploit" onclick="setMode('exploit')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#fff;color:#666">Exploit</button>
+</div>
 <div id="scoreboard"></div>
 <div id="app"></div>
 
@@ -657,6 +662,201 @@ function tableHTML(scenario) {
   </div>`;
 }
 
+// ── RANGE GRIDS ──────────────────────────────────────────────────────────────
+const RANKS13 = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+
+// For each position: Set of hand combos that are RAISE (suited lowercase = suited, uppercase pair/offsuit)
+// Format: 'AKs','AKo','AA' etc. We store as a flat Set for quick lookup.
+const RANGES = {
+  UTG:       {notes:'~13% av hender. Tidligste posisjon – kun sterke hender.'},
+  'UTG+1':   {notes:'~14%. Litt bredere enn UTG.'},
+  'UTG+2':   {notes:'~15%. Kan åpne noen broadway-hender.'},
+  MP:        {notes:'~17%. Middle position – litt bredere range.'},
+  HJ:        {notes:'~20%. Hijack – begynner å åpne bredere.'},
+  CO:        {notes:'~25%. Cutoff – bred range med gode hender.'},
+  BTN:       {notes:'~45%. Knappen – åpner nesten halvparten av alle hender.'},
+  SB:        {notes:'3-bet or fold strategi OOP. Unngå flat-call.'},
+  BB_vs_BTN: {notes:'BB har gode pot-odds. Kall bredt, 3-bet sterkt eller som bluff.'},
+  BB_vs_CO:  {notes:'Tighter call-range mot CO enn mot BTN.'},
+  BB_vs_UTG: {notes:'Veldig tight mot UTG sin sterke ~13% range.'},
+};
+
+function buildRangeSet(hands) {
+  const s = new Set();
+  hands.forEach(h => s.add(h));
+  return s;
+}
+
+const RANGE_SETS = {
+  UTG: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55',
+    'AKs','AQs','AJs','ATs','KQs','KJs','QJs','JTs','T9s','98s',
+    'AKo','AQo']),
+  'UTG+1': buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44',
+    'AKs','AQs','AJs','ATs','A9s','KQs','KJs','KTs','QJs','QTs','JTs','T9s','98s','87s',
+    'AKo','AQo','AJo']),
+  'UTG+2': buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33',
+    'AKs','AQs','AJs','ATs','A9s','A8s','KQs','KJs','KTs','QJs','QTs','JTs','T9s','98s','87s','76s',
+    'AKo','AQo','AJo','KQo']),
+  MP: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44',
+    'AKs','AQs','AJs','ATs','A9s','KQs','KJs','KTs','QJs','QTs','JTs','T9s','98s','87s','76s',
+    'AKo','AQo','AJo','KQo']),
+  HJ: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s',
+    'KQs','KJs','KTs','K9s','QJs','QTs','Q9s','JTs','J9s','T9s','T8s','98s','97s','87s','86s','76s','75s','65s',
+    'AKo','AQo','AJo','ATo','KQo','KJo','QJo']),
+  CO: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s','QJs','QTs','Q9s','Q8s','JTs','J9s','J8s','T9s','T8s','T7s','98s','97s','96s','87s','86s','76s','75s','65s','64s',
+    'AKo','AQo','AJo','ATo','KQo','KJo','KTo','QJo','QTo','JTo']),
+  BTN: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s',
+    'QJs','QTs','Q9s','Q8s','Q7s','JTs','J9s','J8s','J7s','T9s','T8s','T7s','T6s',
+    '98s','97s','96s','95s','87s','86s','85s','76s','75s','74s','65s','64s','63s','54s','53s',
+    'AKo','AQo','AJo','ATo','A9o','A8o','A7o','A6o','A5o','A4o','A3o','A2o',
+    'KQo','KJo','KTo','K9o','QJo','QTo','Q9o','JTo','J9o','T9o']),
+  SB_open: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s','K7s','QJs','QTs','Q9s','Q8s','JTs','J9s','J8s','T9s','T8s','98s','97s','87s',
+    'AKo','AQo','AJo','ATo','KQo','KJo','KTo','QJo']),
+  // BB call ranges (vs BTN)
+  BB_vs_BTN_call: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s','K4s','K3s','K2s',
+    'QJs','QTs','Q9s','Q8s','Q7s','Q6s','Q5s','JTs','J9s','J8s','J7s','T9s','T8s','T7s',
+    '98s','97s','96s','87s','86s','76s','75s','65s',
+    'AKo','AQo','AJo','ATo','A9o','A8o','A7o','A6o','A5o','A4o','A3o','A2o',
+    'KQo','KJo','KTo','K9o','K8o','K7o','QJo','QTo','Q9o','Q8o','JTo','J9o','T9o','T8o']),
+  BB_vs_CO_call: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s',
+    'QJs','QTs','Q9s','Q8s','Q7s','JTs','J9s','J8s','T9s','T8s','98s','97s','87s',
+    'AKo','AQo','AJo','ATo','A9o','A8o','A7o','A6o','A5o',
+    'KQo','KJo','KTo','K9o','QJo','QTo','Q9o','JTo','J9o']),
+  BB_vs_UTG_call: buildRangeSet(['AA','KK','QQ','JJ','TT','99','88','77','66','55',
+    'AKs','AQs','AJs','ATs','A9s','A8s',
+    'KQs','KJs','KTs','QJs','QTs','JTs','T9s','98s',
+    'AKo','AQo','AJo','KQo']),
+};
+
+// 3bet ranges (for BB/SB)
+const THREBET_SETS = {
+  BB_vs_BTN: buildRangeSet(['AA','KK','QQ','JJ','AKs','AQs','AJs','KQs','A5s','A4s','A3s','AKo','AQo']),
+  BB_vs_CO:  buildRangeSet(['AA','KK','QQ','JJ','AKs','AQs','AJs','KQs','A5s','A4s','AKo','AQo']),
+  BB_vs_UTG: buildRangeSet(['AA','KK','QQ','AKs','AKo']),
+  SB_vs_BTN: buildRangeSet(['AA','KK','QQ','JJ','AKs','AQs','AJs','KQs','A5s','A4s','A3s','AKo']),
+};
+
+function handKey(r1, r2, i, j) {
+  // i=row (A=0), j=col (A=0). Above diagonal = suited, below = offsuit, diagonal = pair
+  if(i===j) return r1+r2; // pair
+  if(j>i) return r1+r2+'s'; // suited (upper right)
+  return r2+r1+'o'; // offsuit (lower left) - r2 is higher rank
+}
+
+function handGridHTML(scenario, heroHand) {
+  const pos = scenario.hero;
+  const villain = scenario.villain;
+
+  let raiseSet=null, callSet=null, threebetSet=null;
+
+  if(pos==='BB' && villain) {
+    if(villain==='BTN') { callSet=RANGE_SETS.BB_vs_BTN_call; threebetSet=THREBET_SETS.BB_vs_BTN; }
+    else if(villain==='CO') { callSet=RANGE_SETS.BB_vs_CO_call; threebetSet=THREBET_SETS.BB_vs_CO; }
+    else if(villain==='UTG') { callSet=RANGE_SETS.BB_vs_UTG_call; threebetSet=THREBET_SETS.BB_vs_UTG; }
+  } else if(pos==='SB') {
+    raiseSet=RANGE_SETS.SB_open;
+    threebetSet=THREBET_SETS.SB_vs_BTN;
+  } else if(RANGE_SETS[pos]) {
+    raiseSet=RANGE_SETS[pos];
+  }
+
+  // Hero hand combo key
+  let heroKey = null;
+  if(heroHand) {
+    const r1=heroHand[0].slice(0,-1), s1=heroHand[0].slice(-1);
+    const r2=heroHand[1].slice(0,-1), s2=heroHand[1].slice(-1);
+    const v1=RANKS13.indexOf(r1), v2=RANKS13.indexOf(r2);
+    const suited=s1===s2;
+    if(v1===v2) heroKey=r1+r2;
+    else if(v1<v2) heroKey=suited?r1+r2+'s':r1+r2+'o';
+    else heroKey=suited?r2+r1+'s':r2+r1+'o';
+  }
+
+  const isDark=document.body.classList.contains('dark');
+  const cellSize='calc((100% - 26px) / 13)';
+
+  let grid='<div style="display:grid;grid-template-columns:repeat(13,1fr);gap:2px;margin-top:8px;">';
+  for(let i=0;i<13;i++) {
+    for(let j=0;j<13;j++) {
+      const r1=RANKS13[i], r2=RANKS13[j];
+      const key=handKey(r1,r2,i,j);
+      const isHero=heroKey===key;
+      const isPair=i===j;
+      const isSuited=j>i;
+
+      let bg, color;
+      if(raiseSet&&raiseSet.has(key)) {
+        bg='#c0392b'; color='#fff'; // red = raise
+      } else if(threebetSet&&threebetSet.has(key)) {
+        bg='#2471a3'; color='#fff'; // blue = 3bet
+      } else if(callSet&&callSet.has(key)) {
+        bg='#1d9e75'; color='#fff'; // green = call
+      } else {
+        bg=isDark?'#1e1e1e':'#f0f0f0'; color=isDark?'#444':'#bbb'; // white = fold
+      }
+
+      // Hero hand highlight
+      const border=isHero?'2px solid #f5e642':'2px solid transparent';
+      const shadow=isHero?'0 0 6px #f5e642':'none';
+      const label=isPair?r1+r1:isSuited?r1+r2+'s':r2+r1+'o';
+      const fontSize=isPair?'7px':isSuited||(!isSuited&&(r1+r2).length<=2)?'6px':'5.5px';
+
+      grid+=`<div style="background:${bg};color:${color};border:${border};box-shadow:${shadow};
+        border-radius:2px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+        font-size:${fontSize};font-weight:${isHero?'700':'500'};line-height:1;overflow:hidden;
+        ">${isHero?'★':label}</div>`;
+    }
+  }
+  grid+='</div>';
+
+  // Legend
+  const legend=`<div style="display:flex;gap:10px;font-size:10px;margin-top:6px;flex-wrap:wrap;color:${isDark?'#aaa':'#666'}">
+    ${raiseSet?`<span><span style="display:inline-block;width:8px;height:8px;background:#c0392b;margin-right:3px;vertical-align:middle;border-radius:1px"></span>Raise</span>`:''}
+    ${threebetSet?`<span><span style="display:inline-block;width:8px;height:8px;background:#2471a3;margin-right:3px;vertical-align:middle;border-radius:1px"></span>3-bet</span>`:''}
+    ${callSet?`<span><span style="display:inline-block;width:8px;height:8px;background:#1d9e75;margin-right:3px;vertical-align:middle;border-radius:1px"></span>Call</span>`:''}
+    <span><span style="display:inline-block;width:8px;height:8px;background:${isDark?'#1e1e1e':'#f0f0f0'};border:1px solid #ccc;margin-right:3px;vertical-align:middle;border-radius:1px"></span>Fold</span>
+    <span><span style="display:inline-block;width:8px;height:8px;background:#555;border:2px solid #f5e642;margin-right:3px;vertical-align:middle;border-radius:1px"></span>Din hånd</span>
+  </div>`;
+
+  const rangesKey = pos==='BB' && villain ? `BB_vs_${villain}` : pos==='SB' ? 'SB' : pos;
+  const notes = RANGES[rangesKey]?.notes||'';
+
+  return `<div style="font-size:10px;font-style:italic;color:#888;margin-bottom:4px">${notes}</div>${grid}${legend}`;
+}
+
+function rangeTableHTML(scenario, hand) {
+  const pos = scenario.hero;
+  const villain = scenario.villain;
+  const title = `${pos}${villain?' vs '+villain:''} – Range`;
+
+  return `
+  <div id="range-box" style="display:none;background:var(--range-bg,#f0f0ec);border-radius:8px;padding:10px 12px;margin-bottom:10px;border:1px solid var(--range-border,#ddd)">
+    <div style="font-size:11px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">${title}</div>
+    ${handGridHTML(scenario, hand)}
+  </div>
+  <button onclick="toggleRange()" id="range-btn" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid #ccc;background:transparent;cursor:pointer;color:#666;margin-bottom:10px">📋 Vis range</button>`;
+}
+
+function toggleRange() {
+  const box=document.getElementById('range-box');
+  const btn=document.getElementById('range-btn');
+  if(!box) return;
+  const show=box.style.display==='none';
+  box.style.display=show?'block':'none';
+  btn.textContent=show?'📋 Skjul range':'📋 Vis range';
+}
+
 function renderPhase() {
   updateScore();
   const {phase,scenario,hand,board}=state;
@@ -702,6 +902,7 @@ function renderPhase() {
   }
 
   html+=`<p class="desc">${desc}</p>`;
+  if(phase==='preflop') html+=rangeTableHTML(scenario, hand);
   html+=`<hr class="divider"/>`;
   html+=`<div class="section-label">Hva gjør du?</div>`;
   html+=`<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
@@ -795,17 +996,362 @@ function updateScore() {
     </div>`;
 }
 
+// ── MODE ─────────────────────────────────────────────────────────────────────
+let appMode = 'gto'; // 'gto' or 'exploit'
+
+function setMode(m) {
+  appMode = m;
+  const isDark = document.body.classList.contains('dark');
+  const active = isDark ? '#e0e0e0' : '#1a1a1a';
+  const activeText = isDark ? '#141414' : '#fff';
+  const inactive = isDark ? '#1e1e1e' : '#fff';
+  const inactiveText = isDark ? '#888' : '#666';
+  document.getElementById('btn-gto').style.background = m==='gto' ? active : inactive;
+  document.getElementById('btn-gto').style.color = m==='gto' ? activeText : inactiveText;
+  document.getElementById('btn-exploit').style.background = m==='exploit' ? active : inactive;
+  document.getElementById('btn-exploit').style.color = m==='exploit' ? activeText : inactiveText;
+  score = {correct:0, ok:0, wrong:0};
+  document.getElementById('scoreboard').innerHTML = '';
+  if(m==='exploit') newExploitHand();
+  else newHand();
+}
+
+// ── EXPLOIT SIM ───────────────────────────────────────────────────────────────
+const PERSONAS = [
+  {
+    id:'nit',
+    name:'🦈 Nit',
+    desc:'Spiller kun premium hender. Folder ved minste motstand. Bluffer aldri.',
+    color:'#5a7a3a',
+    traits: { foldToPressure: true, blufffFreq: 0, valueRange: 'tight', callFreq: 'low', aggr: 'low' },
+    tips: {
+      preflop_raise: 'Mot en nit er re-steal med brede hender lønnsomt – de folder mye.',
+      preflop_call:  'Call mot nit er OK med speculative hender – de er forutsigbare post-flop.',
+      preflop_fold:  'Fold er nødvendig mot nit sin sterke range.',
+      flop_bet_value:'Nit folder ofte til c-bet – bet tynn value og semi-bluff mer enn normalt.',
+      flop_bet_bluff:'Bluff mot nit funker godt – de folder alt de ikke har.',
+      flop_check:    'Check mot nit er OK, men du mister fold equity du ellers hadde hatt.',
+      turn_bet:      'Fortsett presset – nit folder turn enda mer enn flop.',
+      turn_check:    'Forsiktig – hvis nit bettter turn har de ofte en sterk hånd.',
+      river_bluff:   'River bluff funker godt mot nit – de folder uten showdown-verdi.',
+      river_value:   'Nit caller sjelden river uten topp hånd – size down for thin value.',
+      call_nit_bet:  'Vær forsiktig – nit bettter sjelden uten sterk hånd. Fold marginal.',
+      fold_nit_bet:  'Riktig! Mot nit sin bet er fold med svak hånd korrekt exploit.',
+    }
+  },
+  {
+    id:'fish',
+    name:'🐟 Fish',
+    desc:'Caller alt. Chaser av draws. Bluffer sjelden. Folder nesten aldri.',
+    color:'#2471a3',
+    traits: { foldToPressure: false, bluffFreq: 0.1, valueRange: 'wide', callFreq: 'high', aggr: 'low' },
+    tips: {
+      preflop_raise: 'Mot fish – value raise bredt. De kaller med alt.',
+      preflop_call:  'Call er for passivt mot fish – raise for value.',
+      preflop_fold:  'Fold er OK mot fish sin rare raise – de har noe da.',
+      flop_bet_value:'✓ Value bet mot fish – aldri slow-play. De caller med middle pair, gutshot, alt.',
+      flop_bet_bluff:'✗ Ikke bluff mot fish – de folder ikke. Bet kun for value.',
+      flop_check:    'Hvis du har noe – bet! Fish caller. Ikke gi gratis kort.',
+      turn_bet:      'Fortsett å value bette tykt – fish caller også turn.',
+      turn_check:    'Hvis du har sterk hånd, bet! Fish gir deg ikke gratis showdown.',
+      river_bluff:   '✗ Aldri bluff mot fish på river – de caller med alt.',
+      river_value:   '✓ Value bet stort på river – fish kaller med svak par, alt.',
+      call_fish_bet: 'Fish bettter sjelden – de har noe. Call med ok hånd, fold søppel.',
+      fold_fish_bet: 'Kan være riktig – fish bettter bare med verdi.',
+    }
+  },
+  {
+    id:'maniac',
+    name:'💣 Maniac',
+    desc:'Bettar og raiser konstant. Bluffer mye. Spiller nesten alle hender.',
+    color:'#a93226',
+    traits: { foldToPressure: false, bluffFreq: 0.7, valueRange: 'very wide', callFreq: 'medium', aggr: 'very high' },
+    tips: {
+      preflop_raise: '3-bet mot maniac med brede hender – de 4-better ofte med søppel.',
+      preflop_call:  'Call er OK – du vil se flop med position mot maniac.',
+      preflop_fold:  'Fold er for tight mot maniac – call bredere.',
+      flop_bet_value:'Value bet mot maniac – de raiser med luft. Vær klar til å call raise.',
+      flop_bet_bluff:'Bluff er risikabelt – maniac kaller eller raiser tilbake.',
+      flop_check:    'Check-raise mot maniac er kraftig – de bettar nesten alltid.',
+      turn_bet:      'Bet for value – maniac kaller. Men vær klar for raise.',
+      turn_check:    'Check-call med medium hånd – maniac bettar deg.',
+      river_bluff:   'Risikabelt – maniac kaller river med mye.',
+      river_value:   '✓ Value bet stort – maniac kaller med lufthender.',
+      call_maniac_bet:'✓ Call mot maniac – de har ofte ingenting.',
+      fold_maniac_bet:'For tight mot maniac – de bluffer mye.',
+    }
+  },
+  {
+    id:'station',
+    name:'📞 Calling Station',
+    desc:'Folder nesten aldri. Kaller på alle streets. Passiv – raiser sjelden.',
+    color:'#7d6608',
+    traits: { foldToPressure: false, bluffFreq: 0.05, valueRange: 'wide', callFreq: 'very high', aggr: 'very low' },
+    tips: {
+      preflop_raise: '✓ Raise for value – station kaller med alt.',
+      preflop_call:  'For passivt – raise og bygg pot mot station.',
+      preflop_fold:  'Kan være riktig mot station sin sjeldne raise.',
+      flop_bet_value:'✓ Bet tykt for value – station kaller med bottom pair, gutshot, alt.',
+      flop_bet_bluff:'✗ Bluff aldri mot station – de folder ikke.',
+      flop_check:    'Bet i stedet – station gir deg ingen informasjon og kaller uansett.',
+      turn_bet:      '✓ Fortsett value betting – station kaller turn like mye som flop.',
+      turn_check:    'Ikke gi gratis kort! Station kaller – bet for value.',
+      river_bluff:   '✗ Aldri bluff mot station. De kaller river med ett par.',
+      river_value:   '✓ Value bet maksimalt på river – station kaller med alt.',
+      call_station_bet:'Station bettar sjelden – vær forsiktig. De har noe.',
+      fold_station_bet:'Riktig – station bettar bare med sterk hånd.',
+    }
+  },
+];
+
+// Exploit hand state
+let exploitState = {};
+
+function newExploitHand() {
+  shuffle();
+  const persona = PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+  const hand = deal(2);
+  // Random scenario for position
+  const sc = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
+  exploitState = {
+    persona, hand, board: [], phase: 'preflop',
+    scenario: sc, prevActions: [], handScore: [],
+  };
+  renderExploit();
+}
+
+function getExploitTip(persona, phase, action, availableActions) {
+  const t = persona.tips;
+  const act = action.toLowerCase();
+  const pid = persona.id;
+  const hasRaise = availableActions.some(a => a.toLowerCase().includes('open') || a.toLowerCase().includes('raise') || a.toLowerCase().includes('bet'));
+  const has3bet = availableActions.some(a => a.toLowerCase().includes('3-bet'));
+  const hasCall = availableActions.some(a => a.toLowerCase() === 'call');
+
+  if(phase === 'preflop') {
+    if(act.includes('fold')) return t.preflop_fold;
+    if(act.includes('limp')) return `✗ Limp er nesten alltid feil – ${pid==='fish'||pid==='station' ? 'raise for value mot denne spilleren' : 'raise eller fold'}.`;
+    if(act.includes('open') || act.includes('raise') || act.includes('3-bet')) {
+      if(pid==='fish'||pid==='station') return `✓ Raise for value mot ${persona.name} – de kaller bredt.`;
+      if(pid==='maniac') return `✓ Raise er riktig – mot maniac kan du kalle raise bredt eller 3-bet bredere hvis du møter raise.`;
+      if(pid==='nit') return `✓ Åpne normalt – nit folder til 3-bet, så du kan steal oftere.`;
+    }
+    if(act === 'call') {
+      if(pid==='fish'||pid==='station') return `~ Raise er bedre enn call mot ${persona.name} – du vil bygge pot for value.`;
+      if(pid==='maniac') return `✓ Call er OK mot maniac – du vil se flop og utnytte deres aggresjon post-flop.`;
+      return t.preflop_call;
+    }
+  }
+
+  if(phase === 'river') {
+    if(act === 'check') {
+      const s = evalStrength(exploitState.hand, exploitState.board);
+      if(s.made >= 2 && (pid==='fish'||pid==='station')) return `✗ Ikke slow-play mot ${persona.name} – de kaller river med nesten alt. Bet for value.`;
+      return `~ Check på river med svak hånd er OK.`;
+    }
+    if(act.includes('bet')) {
+      const s = evalStrength(exploitState.hand, exploitState.board);
+      return s.made >= 2 ? t.river_value : t.river_bluff;
+    }
+    if(act === 'call') return t[`call_${pid}_bet`] || '~ Vurder nøye.';
+    if(act.includes('fold')) return t[`fold_${pid}_bet`] || '~ OK fold.';
+  }
+
+  if(act === 'check') {
+    if(phase==='flop') return t.flop_check;
+    return t.turn_check;
+  }
+  if(act.includes('bet')) {
+    const s = exploitState.board.length > 0 ? evalStrength(exploitState.hand, exploitState.board) : {made:0,fDraw:false,oesd:false};
+    const hasValue = s.made >= 1 || s.fDraw || s.oesd;
+    if(phase==='flop') return hasValue ? t.flop_bet_value : t.flop_bet_bluff;
+    return t.turn_bet;
+  }
+  if(act.includes('fold')) return t[`fold_${pid}_bet`] || t.preflop_fold;
+  if(act === 'call') return t[`call_${pid}_bet`] || t.preflop_call;
+  return '~ Vurder motstander-typen nøye.';
+}
+
+function exploitQuality(persona, phase, action, hand, board) {
+  const act = action.toLowerCase();
+  const s = board.length > 0 ? evalStrength(hand, board) : {made:0, strength:'air', fDraw:false, oesd:false};
+  const hasValue = s.made >= 2 || (s.made >= 1 && (s.fDraw || s.oesd));
+  const strongHand = s.strength === 'monster' || s.strength === 'strong' || s.strength === 'medium';
+  const pid = persona.id;
+
+  if(phase === 'preflop') {
+    if(act.includes('open') || act.includes('raise') || act.includes('3-bet')) {
+      if(pid === 'fish' || pid === 'station') return 'good'; // always raise vs fish/station
+      if(pid === 'maniac') return 'ok';
+      return 'ok';
+    }
+    if(act === 'call') {
+      if(pid === 'fish' || pid === 'station') return 'ok'; // should raise
+      return 'good';
+    }
+    return 'ok';
+  }
+
+  if(act.includes('bet')) {
+    const pct = act.match(/(\d+)%/) ? parseInt(act.match(/(\d+)%/)[1]) : 50;
+    if(pid === 'fish' || pid === 'station') {
+      // Never bluff, always value bet
+      if(strongHand) return 'good';
+      if(s.made === 0 && !s.fDraw) return 'bad'; // bluffing fish
+      return 'ok';
+    }
+    if(pid === 'nit') {
+      // Bluff more, value bet less
+      if(!strongHand) return 'good'; // bluff nit
+      if(strongHand && pct <= 50) return 'ok'; // thin value ok
+      return 'ok';
+    }
+    if(pid === 'maniac') {
+      if(strongHand) return 'good';
+      return 'ok';
+    }
+  }
+
+  if(act === 'check') {
+    if((pid === 'fish' || pid === 'station') && strongHand) return 'bad'; // missed value
+    if(pid === 'nit' && !strongHand) return 'ok'; // checking air vs nit is ok
+    if(pid === 'maniac') return 'good'; // check-raise setup
+    return 'ok';
+  }
+
+  if(act.includes('fold')) {
+    if((pid === 'maniac') && s.made >= 1) return 'bad'; // too tight vs maniac
+    return 'ok';
+  }
+
+  if(act === 'call') {
+    if(pid === 'maniac' && s.made >= 1) return 'good'; // call maniac wide
+    if((pid === 'nit') && !strongHand) return 'bad'; // calling nit without strong hand
+    return 'ok';
+  }
+
+  return 'ok';
+}
+
+function renderExploit() {
+  updateScore();
+  const {persona, hand, board, phase, scenario} = exploitState;
+  const streets = ['preflop','flop','turn','river'];
+  const si = streets.indexOf(phase);
+  const progress = streets.map((s,i)=>`<span class="street-dot ${i<si?'done':i===si?'current':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
+
+  let actions;
+  if(phase==='preflop') actions = scenario.preflopActions;
+  else if(phase==='flop') actions = scenario.flopActions;
+  else if(phase==='turn') actions = scenario.turnActions;
+  else actions = scenario.riverActions;
+
+  const pot = phase==='preflop' ? scenario.flopPotBB : calcPot(scenario.flopPotBB, exploitState.prevActions.slice(1));
+
+  let html = `<div class="street-progress">${progress}</div>`;
+  html += tableHTML(scenario);
+
+  // Persona card
+  html += `<div style="background:${persona.color}18;border:1px solid ${persona.color}44;border-radius:8px;padding:10px 14px;margin-bottom:10px;">
+    <div style="font-size:14px;font-weight:600;color:${persona.color}">${persona.name}</div>
+    <div style="font-size:12px;color:#888;margin-top:2px">${persona.desc}</div>
+  </div>`;
+
+  // Hand + board
+  html += `<div class="section-label">Din hånd</div><div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}`;
+  if(board.length > 0) html += `<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`;
+  html += `</div>`;
+
+  if(board.length > 0) html += `<p class="desc">Pot: ~${pot}bb. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}.</p>`;
+  else html += `<p class="desc">${scenario.preflopDesc}</p>`;
+
+  html += `<hr class="divider"/>`;
+  html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
+  html += `<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
+  html += `<div id="result"></div>`;
+
+  document.getElementById('app').innerHTML = html;
+}
+
+function exploitAnswer(act) {
+  const {persona, hand, board, phase, scenario} = exploitState;
+  const streets = ['preflop','flop','turn','river'];
+  const si = streets.indexOf(phase);
+  let availableActions;
+  if(phase==='preflop') availableActions=scenario.preflopActions;
+  else if(phase==='flop') availableActions=scenario.flopActions;
+  else if(phase==='turn') availableActions=scenario.turnActions;
+  else availableActions=scenario.riverActions;
+  const q = exploitQuality(persona, phase, act, hand, board);
+  const tip = getExploitTip(persona, phase, act, availableActions);
+  if(q==='good') score.correct++;
+  else if(q==='ok') score.ok++;
+  else score.wrong++;
+
+  const cls = q==='good'?'result-good':q==='ok'?'result-ok':'result-bad';
+  const label = q==='good'?'✓':q==='ok'?'~':'✗';
+  document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
+
+  const nextSt = streets[si+1];
+  const isFold = act.toLowerCase()==='fold';
+  const isLast = phase==='river' || isFold;
+
+  exploitState.prevActions.push(act);
+  exploitState.handScore.push(q);
+
+  let btns = '';
+  if(!isLast) btns += `<button class="next-btn" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
+  btns += `<button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  if(isLast) btns = `<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
+
+  document.getElementById('result').innerHTML = `<div class="${cls}">${label} ${tip}</div>${btns}`;
+  updateScore();
+}
+
+function exploitNextStreet(street) {
+  if(street==='flop') exploitState.board = deal(3);
+  else exploitState.board = [...exploitState.board, ...deal(1)];
+  exploitState.phase = street;
+  renderExploit();
+}
+
+function showExploitSummary() {
+  const {handScore, hand, board, persona} = exploitState;
+  const streets = ['Preflop','Flop','Turn','River'];
+  const labels = {good:'✓ Riktig exploit',ok:'~ Akseptabelt',bad:'✗ Feil exploit'};
+  const cls = {good:'tag-good',ok:'tag-ok',bad:'tag-bad'};
+  let rows = '';
+  handScore.forEach((q,i)=>{
+    rows+=`<div class="summary-row"><span>${streets[i]}</span><span class="${cls[q]}">${labels[q]}</span></div>`;
+  });
+  const good = handScore.filter(q=>q==='good').length;
+  document.getElementById('app').innerHTML = `
+    <div style="background:${persona.color}18;border:1px solid ${persona.color}44;border-radius:8px;padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:600;color:${persona.color}">${persona.name}</div>
+    </div>
+    <div class="section-label">Håndoppsummering</div>
+    <div style="background:var(--range-bg,#f0f0ec);border-radius:10px;border:0.5px solid #ddd;padding:12px 16px;margin-bottom:12px">
+      ${rows}
+      <div style="margin-top:10px;font-size:13px;color:#555">Riktige exploit-valg: <strong>${good}/${handScore.length}</strong></div>
+    </div>
+    <div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}${board.length?`<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`:''}</div>
+    <button class="next-btn" onclick="newExploitHand()" style="margin-top:14px">Ny hånd</button>
+  `;
+  updateScore();
+}
+
 function toggleDark() {
   const dark = document.body.classList.toggle('dark');
   document.getElementById('darkBtn').textContent = dark ? '☀️ Lys' : '🌙 Mørk';
   localStorage.setItem('dark', dark ? '1' : '0');
+  setMode(appMode);
 }
 if(localStorage.getItem('dark')==='1') {
   document.body.classList.add('dark');
   document.getElementById('darkBtn').textContent='☀️ Lys';
 }
 
-newHand();
+setMode('gto');
 </script>
 
 </body>
