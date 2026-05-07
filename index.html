@@ -571,7 +571,7 @@ function newHand() {
   state={
     phase:'preflop', scenario:sc,
     hand, board:[], prevActions:[], handScore:[],
-    continueHand:false,
+    continueHand:false, villainBet:null,
   };
   renderPhase();
 }
@@ -857,6 +857,122 @@ function toggleRange() {
   btn.textContent=show?'📋 Skjul range':'📋 Vis range';
 }
 
+// ── VILLAIN ACTION ENGINE ─────────────────────────────────────────────────────
+// GTO c-bet frequencies (IP vs OOP, by street)
+const GTO_CBET = {
+  flop:  { IP: 0.55, OOP: 0.40 },
+  turn:  { IP: 0.45, OOP: 0.35 },
+  river: { IP: 0.40, OOP: 0.30 },
+};
+
+// Persona c-bet frequencies
+const PERSONA_CBET = {
+  nit:     { flop:0.25, turn:0.20, river:0.15 },
+  fish:    { flop:0.30, turn:0.25, river:0.20 },
+  maniac:  { flop:0.80, turn:0.75, river:0.70 },
+  station: { flop:0.25, turn:0.20, river:0.15 },
+};
+
+// Persona c-bet sizing
+const PERSONA_SIZING = {
+  nit:     '50%',
+  fish:    '33%',
+  maniac:  '120%',
+  station: '33%',
+};
+
+function villainBets(street, pos, persona) {
+  // Returns true if villain bets, false if checks
+  if(persona) {
+    const freq = PERSONA_CBET[persona.id][street] || 0.3;
+    return Math.random() < freq;
+  }
+  const freq = GTO_CBET[street]?.[pos] || 0.4;
+  return Math.random() < freq;
+}
+
+function villainSizing(street, persona) {
+  if(persona) return PERSONA_SIZING[persona.id];
+  // GTO sizing varies by street
+  if(street==='flop') return '33%';
+  if(street==='turn') return '67%';
+  return '75%';
+}
+
+// Eval: facing villain bet (call/fold/raise)
+function evalFacingBet(hand, board, action, pos, street, pot, persona) {
+  const s = evalStrength(hand, board);
+  const h = parseHand(hand);
+  const hl = handLabel(h);
+  const ip = pos === 'IP';
+  const act = action.toLowerCase();
+  const strongHand = s.strength==='monster'||s.strength==='strong'||s.strength==='medium';
+  const hasDraw = s.fDraw || s.oesd;
+  const hasEquity = strongHand || hasDraw || (s.made>=1 && hasDraw);
+
+  if(persona) {
+    const pid = persona.id;
+    if(act==='fold') {
+      if(pid==='maniac') {
+        if(hasEquity) return {q:'bad', msg:`✗ For tight mot maniac – de bluffer mye. Call med ${hl}.`};
+        return {q:'good', msg:`✓ Fold er OK uten equity mot maniac.`};
+      }
+      if(pid==='nit'||pid==='station') {
+        if(hasEquity) return {q:'bad', msg:`✗ ${persona.name} bettar sjelden uten sterk hånd, men ${hl} har nok equity til å kalle.`};
+        return {q:'good', msg:`✓ Riktig fold – ${persona.name} bettar nesten bare for value.`};
+      }
+      if(strongHand) return {q:'bad', msg:`✗ Du folder sterk hånd! Call eller raise.`};
+      return {q:'ok', msg:`~ Fold uten equity er akseptabelt.`};
+    }
+    if(act==='call') {
+      if(pid==='maniac') {
+        if(hasEquity) return {q:'good', msg:`✓ Call mot maniac med ${hl} – de bluffer mye.`};
+        return {q:'ok', msg:`~ Litt løs call mot maniac uten equity.`};
+      }
+      if(pid==='nit') {
+        if(strongHand) return {q:'good', msg:`✓ Call med sterk hånd er riktig – nit har noe, men du også.`};
+        return {q:'bad', msg:`✗ Nit bettar nesten bare med sterke hender. Fold ${hl}.`};
+      }
+      if(hasEquity) return {q:'good', msg:`✓ Call med ${hl} er riktig her.`};
+      return {q:'bad', msg:`✗ For svak til å kalle. Fold ${hl}.`};
+    }
+    if(act.includes('raise')) {
+      if(pid==='fish'||pid==='station') {
+        if(strongHand) return {q:'good', msg:`✓ Raise for value! ${persona.name} kaller med mye.`};
+        return {q:'ok', msg:`~ Bluff-raise mot ${persona.name} er risikabelt – de kaller bredt.`};
+      }
+      if(pid==='maniac') {
+        if(strongHand) return {q:'good', msg:`✓ Raise mot maniac for value – vær klar for 3-bet.`};
+        return {q:'ok', msg:`~ Bluff-raise mot maniac kan gi deg 3-bet tilbake.`};
+      }
+      if(pid==='nit') {
+        if(strongHand) return {q:'good', msg:`✓ Raise mot nit – de folder til press uten sterk hånd.`};
+        return {q:'good', msg:`✓ Bluff-raise mot nit er lønnsomt – de folder mye.`};
+      }
+    }
+  }
+
+  // GTO facing bet
+  if(act==='fold') {
+    if(strongHand) return {q:'bad', msg:`✗ Fold med sterk hånd (${hl}) er feil. Call eller raise.`};
+    if(hasDraw) return {q:'ok', msg:`~ Fold med draw er mulig, men call for pot-odds er vanligvis bedre.`};
+    return {q:'good', msg:`✓ Fold uten equity er riktig.`};
+  }
+  if(act==='call') {
+    if(strongHand) return {q:'good', msg:`✓ Call med sterk hånd (${hl}) er riktig.`};
+    if(hasDraw) return {q:'good', msg:`✓ Call med draw for pot-odds er GTO.`};
+    if(s.made===1) return {q:'ok', msg:`~ Marginal call med svak par. Avhenger av pot-odds.`};
+    return {q:'bad', msg:`✗ Call uten equity er feil. Fold ${hl}.`};
+  }
+  if(act.includes('raise')) {
+    if(s.strength==='monster'||s.strength==='strong') return {q:'good', msg:`✓ Raise for value med sterk hånd – bygg pot!`};
+    if(hasDraw && ip) return {q:'good', msg:`✓ Semi-bluff raise med draw IP er GTO.`};
+    if(hasDraw) return {q:'ok', msg:`~ Semi-bluff raise OOP er mulig men risikabelt.`};
+    return {q:'ok', msg:`~ Bluff raise uten equity er marginal.`};
+  }
+  return {q:'ok', msg:'Akseptabelt valg.'};
+}
+
 function renderPhase() {
   updateScore();
   const {phase,scenario,hand,board}=state;
@@ -904,12 +1020,52 @@ function renderPhase() {
   html+=`<p class="desc">${desc}</p>`;
   if(phase==='preflop') html+=rangeTableHTML(scenario, hand);
   html+=`<hr class="divider"/>`;
-  html+=`<div class="section-label">Hva gjør du?</div>`;
-  html+=`<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
+
+  // Villain action on post-flop streets
+  const vBet = state.villainBet;
+  if(phase!=='preflop' && vBet) {
+    const villainLabel = scenario.villain || 'Motstander';
+    html+=`<div style="background:#1a3a5c22;border:1px solid #378add44;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;">
+      💬 <strong>${villainLabel}</strong> bettter <strong>${vBet}</strong> av pot
+    </div>`;
+    html+=`<div class="section-label">Hva gjør du?</div>`;
+    const facingActions=['Fold','Call','Raise 2.5x'];
+    html+=`<div id="actions">${facingActions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answerFacing('${a}')">${a}</button>`).join('')}</div>`;
+  } else {
+    html+=`<div class="section-label">Hva gjør du?</div>`;
+    html+=`<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
+  }
   html+=`<div id="result"></div>`;
 
   document.getElementById('app').innerHTML=html;
   state._evalFn=evalFn;
+}
+
+function answerFacing(act) {
+  const {hand, board, phase, scenario} = state;
+  const res = evalFacingBet(hand, board, act, scenario.flopPos, phase, scenario.flopPotBB, null);
+  state.prevActions.push('facing:'+act);
+  state.handScore.push(res.q);
+  if(res.q==='good') score.correct++;
+  else if(res.q==='ok') score.ok++;
+  else score.wrong++;
+
+  const cls=res.q==='good'?'result-good':res.q==='ok'?'result-ok':'result-bad';
+  document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
+
+  const streets=['preflop','flop','turn','river'];
+  const si=streets.indexOf(phase);
+  const nextSt=streets[si+1];
+  const isFold=act.toLowerCase()==='fold';
+  const isLast=phase==='river'||isFold;
+
+  let btns='';
+  if(!isLast) btns+=`<button class="next-btn" onclick="nextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
+  btns+=`<button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
+  if(isLast) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
+
+  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div>${btns}`;
+  updateScore();
 }
 
 function answer(act) {
@@ -950,6 +1106,10 @@ function nextStreet(street) {
     state.board=[...state.board,...deal(1)];
   }
   state.phase=street;
+  // Determine villain action
+  const pos = state.scenario.flopPos;
+  const vBets = villainBets(street, pos, null);
+  state.villainBet = vBets ? villainSizing(street, null) : null;
   renderPhase();
 }
 
@@ -1115,7 +1275,7 @@ function newExploitHand() {
   const sc = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
   exploitState = {
     persona, hand, board: [], phase: 'preflop',
-    scenario: sc, prevActions: [], handScore: [],
+    scenario: sc, prevActions: [], handScore: [], villainBet: null,
   };
   renderExploit();
 }
@@ -1266,11 +1426,50 @@ function renderExploit() {
   else html += `<p class="desc">${scenario.preflopDesc}</p>`;
 
   html += `<hr class="divider"/>`;
-  html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
-  html += `<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
+
+  const vBet = exploitState.villainBet;
+  if(phase !== 'preflop' && vBet) {
+    const sizing = vBet;
+    html += `<div style="background:${persona.color}18;border:1px solid ${persona.color}44;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;">
+      💬 <strong>${persona.name}</strong> bettter <strong>${sizing}</strong> av pot
+    </div>`;
+    html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
+    const facingActions=['Fold','Call','Raise 2.5x'];
+    html += `<div id="actions">${facingActions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswerFacing('${a}')">${a}</button>`).join('')}</div>`;
+  } else {
+    html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
+    html += `<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
+  }
   html += `<div id="result"></div>`;
 
   document.getElementById('app').innerHTML = html;
+}
+
+function exploitAnswerFacing(act) {
+  const {persona, hand, board, phase, scenario} = exploitState;
+  const res = evalFacingBet(hand, board, act, scenario.flopPos, phase, scenario.flopPotBB, persona);
+  exploitState.prevActions.push('facing:'+act);
+  exploitState.handScore.push(res.q);
+  if(res.q==='good') score.correct++;
+  else if(res.q==='ok') score.ok++;
+  else score.wrong++;
+
+  const cls=res.q==='good'?'result-good':res.q==='ok'?'result-ok':'result-bad';
+  document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
+
+  const streets=['preflop','flop','turn','river'];
+  const si=streets.indexOf(phase);
+  const nextSt=streets[si+1];
+  const isFold=act.toLowerCase()==='fold';
+  const isLast=phase==='river'||isFold;
+
+  let btns='';
+  if(!isLast) btns+=`<button class="next-btn" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
+  btns+=`<button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  if(isLast) btns=`<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
+
+  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div>${btns}`;
+  updateScore();
 }
 
 function exploitAnswer(act) {
@@ -1312,6 +1511,9 @@ function exploitNextStreet(street) {
   if(street==='flop') exploitState.board = deal(3);
   else exploitState.board = [...exploitState.board, ...deal(1)];
   exploitState.phase = street;
+  const pos = exploitState.scenario.flopPos;
+  const vBets = villainBets(street, pos, exploitState.persona);
+  exploitState.villainBet = vBets ? villainSizing(street, exploitState.persona) : null;
   renderExploit();
 }
 
