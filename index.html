@@ -572,76 +572,88 @@ function newHand() {
 }
 
 // ── TABLE VISUALIZATION ───────────────────────────────────────────────────────
-// 9-max seat positions (clockwise): BTN(top-right), CO, HJ, MP, UTG+2, UTG+1, UTG(bottom), BB, SB
-const SEAT_POSITIONS = [
-  {pos:'BTN', x:72, y:8},
-  {pos:'CO',  x:90, y:28},
-  {pos:'HJ',  x:90, y:55},
-  {pos:'MP',  x:78, y:76},
-  {pos:'UTG+2',x:55,y:86},
-  {pos:'UTG+1',x:32,y:76},
-  {pos:'UTG', x:18, y:55},
-  {pos:'BB',  x:10, y:28},
-  {pos:'SB',  x:28, y:8},
-];
+// Clockwise from BTN (top-center): BTN, SB, BB, UTG, UTG+1, UTG+2, MP, HJ, CO
+// Positions as % on an oval, viewed from above. BTN at top-center.
+// Oval: cx=50%, cy=50%, rx=42%, ry=38%
+// Angle 0 = top, clockwise. 9 seats evenly spaced.
+function seatXY(i, total) {
+  const angle = (i / total) * 2 * Math.PI - Math.PI / 2;
+  const x = 50 + 44 * Math.cos(angle);
+  const y = 50 + 40 * Math.sin(angle);
+  return {x, y};
+}
+
+// Order clockwise from top: BTN at index 0
+const SEAT_ORDER = ['BTN','SB','BB','UTG','UTG+1','UTG+2','MP','HJ','CO'];
 
 function tableHTML(scenario) {
   const hero=scenario.hero;
   const villain=scenario.villain;
-
-  // Who folded preflop based on scenario description
   const allPos=['UTG','UTG+1','UTG+2','MP','HJ','CO','BTN','SB','BB'];
   const heroIdx=allPos.indexOf(hero);
-  const villainIdx=allPos.indexOf(villain);
+  const villainIdx=villain?allPos.indexOf(villain):-1;
 
-  // Seats that acted (folded) before hero in RFI spots, or between opener and hero in facing-open spots
   function seatStatus(pos) {
     if(pos===hero) return 'hero';
     if(pos===villain) return 'villain';
     const idx=allPos.indexOf(pos);
-
-    // RFI scenario: hero is first to act or opening - no one has folded yet
-    // villain is BB (or no villain), meaning hero is raising first in
-    const isRFI = !scenario.villain || scenario.tag.startsWith('RFI');
+    const isRFI=!scenario.villain||scenario.tag.startsWith('RFI');
     if(isRFI) return 'active';
-
-    // Facing open: villain opened before hero
-    // Seats between UTG and villain (exclusive) folded
-    // Seats after hero (BTN, SB, BB) are still active
-    if(idx < villainIdx) return 'folded'; // folded before villain opened
-    if(idx > villainIdx && idx < heroIdx) return 'folded'; // folded between villain and hero
+    if(idx<villainIdx) return 'folded';
+    if(idx>villainIdx&&idx<heroIdx) return 'folded';
     return 'active';
   }
 
-  const seats = SEAT_POSITIONS.map(({pos,x,y})=>{
+  const isDark=document.body.classList.contains('dark');
+  const seats = SEAT_ORDER.map((pos,i)=>{
+    const {x,y}=seatXY(i,9);
     const status=seatStatus(pos);
     const isHero=status==='hero';
     const isVillain=status==='villain';
     const isFolded=status==='folded';
-    const bg=isHero?'#1a1a1a':isVillain?'#378add':isFolded?'#e0e0e0':'#fff';
-    const color=isHero?'#fff':isVillain?'#fff':isFolded?'#aaa':'#555';
-    const border=isHero?'none':isVillain?'none':'1px solid #ccc';
+    const bg=isHero?'#1a1a1a':isVillain?'#378add':isFolded?(isDark?'#2a2a2a':'#e0e0e0'):(isDark?'#2a2a2a':'#fff');
+    const color=isHero?'#fff':isVillain?'#fff':isFolded?(isDark?'#555':'#aaa'):(isDark?'#ccc':'#444');
+    const border=isHero?'none':isVillain?'none':`1px solid ${isDark?'#444':'#ccc'}`;
     const label=pos==='UTG+2'?'U+2':pos==='UTG+1'?'U+1':pos;
+    const shadow=isHero?'0 2px 8px rgba(0,0,0,0.5)':isVillain?'0 2px 8px rgba(55,138,221,0.5)':'none';
     return `<div style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
-      background:${bg};color:${color};border:${border};
-      border-radius:20px;padding:3px 7px;font-size:10px;font-weight:500;white-space:nowrap;
-      box-shadow:${isHero?'0 2px 6px rgba(0,0,0,0.3)':isVillain?'0 2px 6px rgba(55,138,221,0.4)':'none'};
-      ">${label}${isHero?' ★':''}</div>`;
+      background:${bg};color:${color};border:${border};border-radius:20px;
+      padding:3px 8px;font-size:10px;font-weight:600;white-space:nowrap;box-shadow:${shadow};
+      z-index:2;">${label}${isHero?' ★':''}</div>`;
   }).join('');
 
-  // Dealer button position - always near BTN
+  // Dealer button chip near BTN
+  const btnXY=seatXY(0,9);
+  const chipX=50+(btnXY.x-50)*0.72;
+  const chipY=50+(btnXY.y-50)*0.72;
+  const dealerChip=`<div style="position:absolute;left:${chipX}%;top:${chipY}%;transform:translate(-50%,-50%);
+    width:16px;height:16px;border-radius:50%;background:#f5e642;border:2px solid #c8b800;
+    font-size:8px;font-weight:700;color:#7a6e00;display:flex;align-items:center;justify-content:center;z-index:3;">D</div>`;
+
+  const feltColor=isDark?'#1a3a22':'#2d7a3a';
+  const feltBorder=isDark?'#0f2216':'#1e5c2a';
+  const railColor=isDark?'#3a1a0a':'#7b3a10';
+  const railBorder=isDark?'#2a1005':'#5c2a08';
+
   return `
-  <div style="position:relative;width:100%;padding-bottom:52%;margin:10px 0;">
-    <div style="position:absolute;inset:0;background:#2d7a3a;border-radius:50%;border:3px solid #1e5c2a;box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);">
-      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:rgba(255,255,255,0.15);font-size:11px;text-align:center;letter-spacing:1px;">9-MAX</div>
+  <div style="position:relative;width:100%;padding-bottom:62%;margin:10px 0;">
+    <!-- Rail (outer rim) -->
+    <div style="position:absolute;inset:0;border-radius:50%/45%;background:${railColor};border:2px solid ${railBorder};"></div>
+    <!-- Felt surface -->
+    <div style="position:absolute;inset:5%;border-radius:50%/45%;background:${feltColor};border:2px solid ${feltBorder};box-shadow:inset 0 4px 20px rgba(0,0,0,0.4);">
+      <!-- Table logo -->
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        color:rgba(255,255,255,0.12);font-size:13px;font-weight:700;letter-spacing:2px;
+        text-transform:uppercase;white-space:nowrap;">krabba-lab</div>
     </div>
+    ${dealerChip}
     ${seats}
   </div>
-  <div style="display:flex;gap:10px;font-size:11px;margin-bottom:8px;flex-wrap:wrap;">
-    <span><span style="display:inline-block;width:10px;height:10px;background:#1a1a1a;border-radius:50%;margin-right:4px"></span>Du</span>
-    <span><span style="display:inline-block;width:10px;height:10px;background:#378add;border-radius:50%;margin-right:4px"></span>Motstander</span>
-    <span><span style="display:inline-block;width:10px;height:10px;background:#e0e0e0;border:1px solid #ccc;border-radius:50%;margin-right:4px"></span>Foldet</span>
-    <span><span style="display:inline-block;width:10px;height:10px;background:#fff;border:1px solid #ccc;border-radius:50%;margin-right:4px"></span>Aktiv</span>
+  <div style="display:flex;gap:12px;font-size:11px;margin-bottom:8px;flex-wrap:wrap;color:${isDark?'#aaa':'#666'}">
+    <span><span style="display:inline-block;width:10px;height:10px;background:#1a1a1a;border-radius:50%;margin-right:4px;vertical-align:middle"></span>Du</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:#378add;border-radius:50%;margin-right:4px;vertical-align:middle"></span>Motstander</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:${isDark?'#333':'#e0e0e0'};border:1px solid ${isDark?'#444':'#ccc'};border-radius:50%;margin-right:4px;vertical-align:middle"></span>Foldet</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:${isDark?'#2a2a2a':'#fff'};border:1px solid ${isDark?'#444':'#ccc'};border-radius:50%;margin-right:4px;vertical-align:middle"></span>Aktiv</span>
   </div>`;
 }
 
