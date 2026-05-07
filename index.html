@@ -60,15 +60,17 @@
   .tag-bad { color: #a32d2d; font-weight: 500; }
   .dark-toggle { background: none; border: 1px solid #ccc; border-radius: 20px; padding: 3px 10px; font-size: 11px; cursor: pointer; color: #666; float: right; margin-top: 2px; }
   p.desc { font-size: 13px; color: #555; margin: 0 0 4px; line-height: 1.4; }
+  body.dark { background: #141414; color: #e0e0e0; }
   body.dark .badge { background: #2a2a2a; color: #aaa; }
   body.dark .badge.active { background: #e0e0e0; color: #141414; }
-  body.dark .card { background: #1e1e1e; border-color: #333; }
+  body.dark .card { background: #fff; border-color: #ccc; }
+  body.dark .suit-S { color: #1a1a1a; }
   body.dark .action-btn { background: #1e1e1e; border-color: #444; color: #e0e0e0; }
   body.dark .action-btn:hover { background: #2a2a2a; }
   body.dark .action-btn.fold { border-color: #e24b4a; color: #e24b4a; }
   body.dark .action-btn.call { border-color: #1d9e75; color: #1d9e75; }
-  body.dark .action-btn.raise { border-color: #378add; color: #378add; }
   body.dark .action-btn.check { border-color: #ba7517; color: #ba7517; }
+  body.dark .action-btn.raise { border-color: #378add; color: #378add; }
   body.dark .score-card { background: #1e1e1e; border-color: #333; }
   body.dark .street-dot { background: #2a2a2a; color: #888; }
   body.dark .street-dot.done { background: #2a4a1e; color: #7ec850; }
@@ -82,16 +84,6 @@
   body.dark .new-hand-btn:hover { background: #2a2a2a; }
   body.dark .summary-row { border-color: #333; }
   body.dark .dark-toggle { border-color: #444; color: #aaa; }
-  body.dark { background: #141414; color: #e0e0e0; }
-  body.dark .badge { background: #2a2a2a; color: #aaa; }
-  body.dark .badge.active { background: #e0e0e0; color: #141414; }
-  body.dark .card { background: #1e1e1e; border-color: #333; }
-  body.dark .action-btn { background: #1e1e1e; border-color: #444; color: #e0e0e0; }
-  body.dark .action-btn:hover { background: #2a2a2a; }
-  body.dark .action-btn.fold { border-color: #e24b4a; color: #e24b4a; }
-  body.dark .action-btn.call { border-color: #1d9e75; color: #1d9e75; }
-  body.dark .action-btn.raise { border-color: #378add; color: #378add; }
-  body.dark .action-btn.check { border-color: #ba7517; color: #ba7517; }
   body.dark .score-card { background: #1e1e1e; border-color: #333; }
   body.dark .street-dot { background: #2a2a2a; color: #888; }
   body.dark .street-dot.done { background: #2a4a1e; color: #7ec850; }
@@ -299,7 +291,7 @@ const SCENARIOS = [
   {
     tag:'RFI UTG', hero:'UTG', villain:'BB',
     flopPos:'OOP', flopPotBB:5.5,
-    preflopDesc:'Du er UTG (seat 1 av 9). Alle folder til deg.',
+    preflopDesc:'Du er UTG (first to act). Alle 8 spillerne etter deg er igjen.',
     preflopActions:['Fold','Open 2.5bb','Limp'],
     preflopEval(hand,action){return rfiEval(hand,action,'UTG');},
     flopActions:['Check','Bet 33%','Bet 75%'],
@@ -312,7 +304,7 @@ const SCENARIOS = [
   {
     tag:'RFI UTG+1', hero:'UTG+1', villain:'BB',
     flopPos:'OOP', flopPotBB:5.5,
-    preflopDesc:'Du er UTG+1. UTG folder. Alle andre folder til deg.',
+    preflopDesc:'Du er UTG+1. UTG folder. UTG+2, MP, HJ, CO, BTN, SB og BB er igjen.',
     preflopActions:['Fold','Open 2.5bb','Limp'],
     preflopEval(hand,action){return rfiEval(hand,action,'UTG+1');},
     flopActions:['Check','Bet 33%','Bet 75%'],
@@ -325,7 +317,7 @@ const SCENARIOS = [
   {
     tag:'RFI UTG+2', hero:'UTG+2', villain:'BB',
     flopPos:'OOP', flopPotBB:5.5,
-    preflopDesc:'Du er UTG+2. UTG og UTG+1 folder. Alle andre folder til deg.',
+    preflopDesc:'Du er UTG+2. UTG og UTG+1 folder. MP, HJ, CO, BTN, SB og BB er igjen.',
     preflopActions:['Fold','Open 2.5bb','Limp'],
     preflopEval(hand,action){return rfiEval(hand,action,'UTG+2');},
     flopActions:['Check','Bet 33%','Bet 75%'],
@@ -338,7 +330,7 @@ const SCENARIOS = [
   {
     tag:'RFI MP', hero:'MP', villain:'BB',
     flopPos:'OOP', flopPotBB:5.5,
-    preflopDesc:'Du er MP. UTG, UTG+1 og UTG+2 folder til deg.',
+    preflopDesc:'Du er MP. UTG, UTG+1 og UTG+2 folder. HJ, CO, BTN, SB og BB er igjen.',
     preflopActions:['Fold','Open 2.5bb','Limp'],
     preflopEval(hand,action){return rfiEval(hand,action,'MP');},
     flopActions:['Check','Bet 33%','Bet 75%'],
@@ -351,7 +343,7 @@ const SCENARIOS = [
   {
     tag:'RFI HJ', hero:'HJ', villain:'BB',
     flopPos:'OOP', flopPotBB:5.5,
-    preflopDesc:'Du er HJ. UTG, UTG+1, UTG+2 og MP folder til deg.',
+    preflopDesc:'Du er HJ. UTG til MP folder. CO, BTN, SB og BB er igjen.',
     preflopActions:['Fold','Open 2.5bb','Limp'],
     preflopEval(hand,action){return rfiEval(hand,action,'HJ');},
     flopActions:['Check','Bet 33%','Bet 75%'],
@@ -364,7 +356,7 @@ const SCENARIOS = [
   {
     tag:'RFI CO', hero:'CO', villain:'BB',
     flopPos:'OOP', flopPotBB:5.5,
-    preflopDesc:'Du er CO. UTG til HJ folder til deg. BTN, SB og BB sitter igjen.',
+    preflopDesc:'Du er CO. UTG til HJ folder. BTN, SB og BB er igjen.',
     preflopActions:['Fold','Open 2.5bb','Limp'],
     preflopEval(hand,action){return rfiEval(hand,action,'CO');},
     flopActions:['Check','Bet 33%','Bet 75%'],
@@ -377,7 +369,7 @@ const SCENARIOS = [
   {
     tag:'RFI BTN', hero:'BTN', villain:'BB',
     flopPos:'IP', flopPotBB:5.5,
-    preflopDesc:'Du er BTN. Alle folder til deg. SB og BB sitter igjen.',
+    preflopDesc:'Du er BTN. UTG til CO folder. SB og BB er igjen.',
     preflopActions:['Fold','Open 2.5bb','Limp'],
     preflopEval(hand,action){return rfiEval(hand,action,'BTN');},
     flopActions:['Check','Bet 33%','Bet 75%'],
@@ -937,8 +929,8 @@ function evalFacingBet(hand, board, action, pos, street, pot, persona) {
     const pid = persona.id;
     if(act==='fold') {
       if(pid==='maniac') {
-        if(hasEquity) return {q:'bad', msg:`✗ For tight mot maniac – de bluffer mye. Call med ${hl}.`};
-        return {q:'good', msg:`✓ Fold er OK uten equity mot maniac.`};
+        if(hasEquity) return {q:'bad', msg:`✗ For tight mot Bernhard – de bluffer mye. Call med ${hl}.`};
+        return {q:'good', msg:`✓ Fold er OK uten equity mot Bernhard.`};
       }
       if(pid==='nit'||pid==='station') {
         if(hasEquity) return {q:'bad', msg:`✗ ${persona.name} bettar sjelden uten sterk hånd, men ${hl} har nok equity til å kalle.`};
@@ -949,8 +941,8 @@ function evalFacingBet(hand, board, action, pos, street, pot, persona) {
     }
     if(act==='call') {
       if(pid==='maniac') {
-        if(hasEquity) return {q:'good', msg:`✓ Call mot maniac med ${hl} – de bluffer mye.`};
-        return {q:'ok', msg:`~ Litt løs call mot maniac uten equity.`};
+        if(hasEquity) return {q:'good', msg:`✓ Call mot Bernhard med ${hl} – de bluffer mye.`};
+        return {q:'ok', msg:`~ Litt løs call mot Bernhard uten equity.`};
       }
       if(pid==='nit') {
         if(strongHand) return {q:'good', msg:`✓ Call med sterk hånd er riktig – nit har noe, men du også.`};
@@ -965,8 +957,8 @@ function evalFacingBet(hand, board, action, pos, street, pot, persona) {
         return {q:'ok', msg:`~ Bluff-raise mot ${persona.name} er risikabelt – de kaller bredt.`};
       }
       if(pid==='maniac') {
-        if(strongHand) return {q:'good', msg:`✓ Raise mot maniac for value – vær klar for 3-bet.`};
-        return {q:'ok', msg:`~ Bluff-raise mot maniac kan gi deg 3-bet tilbake.`};
+        if(strongHand) return {q:'good', msg:`✓ Raise mot Bernhard for value – vær klar for 3-bet.`};
+        return {q:'ok', msg:`~ Bluff-raise mot Bernhard kan gi deg 3-bet tilbake.`};
       }
       if(pid==='nit') {
         if(strongHand) return {q:'good', msg:`✓ Raise mot nit – de folder til press uten sterk hånd.`};
@@ -1245,23 +1237,23 @@ const PERSONAS = [
   },
   {
     id:'maniac',
-    name:'💣 Maniac',
+    name:'💣 Bernhard',
     desc:'Bettar og raiser konstant. Bluffer mye. Spiller nesten alle hender.',
     color:'#a93226',
     traits: { foldToPressure: false, bluffFreq: 0.7, valueRange: 'very wide', callFreq: 'medium', aggr: 'very high' },
     tips: {
-      preflop_raise: '3-bet mot maniac med brede hender – de 4-better ofte med søppel.',
-      preflop_call:  'Call er OK – du vil se flop med position mot maniac.',
-      preflop_fold:  'Fold er for tight mot maniac – call bredere.',
-      flop_bet_value:'Value bet mot maniac – de raiser med luft. Vær klar til å call raise.',
-      flop_bet_bluff:'Bluff er risikabelt – maniac kaller eller raiser tilbake.',
-      flop_check:    'Check-raise mot maniac er kraftig – de bettar nesten alltid.',
-      turn_bet:      'Bet for value – maniac kaller. Men vær klar for raise.',
-      turn_check:    'Check-call med medium hånd – maniac bettar deg.',
-      river_bluff:   'Risikabelt – maniac kaller river med mye.',
-      river_value:   '✓ Value bet stort – maniac kaller med lufthender.',
-      call_maniac_bet:'✓ Call mot maniac – de har ofte ingenting.',
-      fold_maniac_bet:'For tight mot maniac – de bluffer mye.',
+      preflop_raise: '3-bet mot Bernhard med brede hender – de 4-better ofte med søppel.',
+      preflop_call:  'Call er OK – du vil se flop med position mot Bernhard.',
+      preflop_fold:  'Fold er for tight mot Bernhard – call bredere.',
+      flop_bet_value:'Value bet mot Bernhard – de raiser med luft. Vær klar til å call raise.',
+      flop_bet_bluff:'Bluff er risikabelt – Bernhard kaller eller raiser tilbake.',
+      flop_check:    'Check-raise mot Bernhard er kraftig – de bettar nesten alltid.',
+      turn_bet:      'Bet for value – Bernhard kaller. Men vær klar for raise.',
+      turn_check:    'Check-call med medium hånd – Bernhard bettar deg.',
+      river_bluff:   'Risikabelt – Bernhard kaller river med mye.',
+      river_value:   '✓ Value bet stort – Bernhard kaller med lufthender.',
+      call_maniac_bet:'✓ Call mot Bernhard – de har ofte ingenting.',
+      fold_maniac_bet:'For tight mot Bernhard – de bluffer mye.',
     }
   },
   {
@@ -1316,12 +1308,12 @@ function getExploitTip(persona, phase, action, availableActions) {
     if(act.includes('limp')) return `✗ Limp er nesten alltid feil – ${pid==='fish'||pid==='station' ? 'raise for value mot denne spilleren' : 'raise eller fold'}.`;
     if(act.includes('open') || act.includes('raise') || act.includes('3-bet')) {
       if(pid==='fish'||pid==='station') return `✓ Raise for value mot ${persona.name} – de kaller bredt.`;
-      if(pid==='maniac') return `✓ Raise er riktig – mot maniac kan du kalle raise bredt eller 3-bet bredere hvis du møter raise.`;
+      if(pid==='maniac') return `✓ Raise er riktig – mot Bernhard kan du kalle raise bredt eller 3-bet bredere hvis du møter raise.`;
       if(pid==='nit') return `✓ Åpne normalt – nit folder til 3-bet, så du kan steal oftere.`;
     }
     if(act === 'call') {
       if(pid==='fish'||pid==='station') return `~ Raise er bedre enn call mot ${persona.name} – du vil bygge pot for value.`;
-      if(pid==='maniac') return `✓ Call er OK mot maniac – du vil se flop og utnytte deres aggresjon post-flop.`;
+      if(pid==='maniac') return `✓ Call er OK mot Bernhard – du vil se flop og utnytte deres aggresjon post-flop.`;
       return t.preflop_call;
     }
   }
