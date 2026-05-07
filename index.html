@@ -239,14 +239,15 @@ function rfiEval(hand, action, pos) {
   const h=parseHand(hand);
   const hl=handLabel(h);
   const ranges = {
-    UTG:    h.pair&&h.hiV>=3 || h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===10&&h.loV===8)||(h.hiV===9&&h.loV===7)) || !h.suited&&((h.hiV>=12&&h.loV>=9)||(h.hiV===12&&h.loV>=10)||(h.hiV===13&&h.loV>=9)),
-    'UTG+1':h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=7)||(h.hiV>=11&&h.loV>=8)||(h.hiV>=10&&h.loV>=8)||(h.hiV===9&&h.loV>=7)) || !h.suited&&((h.hiV>=12&&h.loV>=9)||(h.hiV===13&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)),
-    'UTG+2':h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=7)||(h.hiV>=11&&h.loV>=8)||(h.hiV>=10&&h.loV>=7)||(h.hiV>=9&&h.loV>=7)) || !h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===13&&h.loV>=7)),
-    MP:     h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=6)||(h.hiV>=10&&h.loV>=7)||(h.hiV>=9&&h.loV>=6)) || !h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===13&&h.loV>=7)),
-    HJ:     h.pair||h.suited&&h.hiV>=8||(!h.suited&&h.hiV>=12&&h.loV>=7)||(!h.suited&&h.hiV>=11&&h.loV>=9)||h.suited&&h.hiV>=9&&h.loV>=6,
-    CO:     h.pair||(h.hiV>=9)||(h.suited&&h.hiV>=6)||(h.hiV>=10&&h.loV>=5),
+    // A=12,K=11,Q=10,J=9,T=8,9=7,8=6,7=5,6=4,5=3,4=2,3=1,2=0
+    UTG:    h.pair&&h.hiV>=3 || h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===8&&h.loV===7)||(h.hiV===9&&h.loV===7)||(h.hiV===8&&h.loV===6)) || !h.suited&&((h.hiV>=12&&h.loV>=9)||(h.hiV===12&&h.loV>=8)||(h.hiV===13&&h.loV>=9)),
+    'UTG+1':h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=7)||(h.hiV>=11&&h.loV>=8)||(h.hiV>=8&&h.loV>=6)||(h.hiV===9&&h.loV>=7)) || !h.suited&&((h.hiV>=12&&h.loV>=9)||(h.hiV===11&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)),
+    'UTG+2':h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=7)||(h.hiV>=11&&h.loV>=8)||(h.hiV>=8&&h.loV>=6)||(h.hiV>=7&&h.loV>=5)) || !h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===12&&h.loV>=7)),
+    MP:     h.pair&&h.hiV>=2 || h.suited&&((h.hiV>=12&&h.loV>=6)||(h.hiV>=9&&h.loV>=7)||(h.hiV>=8&&h.loV>=6)||(h.hiV>=7&&h.loV>=5)) || !h.suited&&((h.hiV>=12&&h.loV>=8)||(h.hiV>=11&&h.loV>=9)||(h.hiV===12&&h.loV>=7)),
+    HJ:     h.pair||h.suited&&h.hiV>=6||(!h.suited&&h.hiV>=12&&h.loV>=7)||(!h.suited&&h.hiV>=11&&h.loV>=9)||(!h.suited&&h.hiV>=9&&h.loV>=8),
+    CO:     h.pair||(h.hiV>=7)||(h.suited&&h.hiV>=4)||(h.hiV>=8&&h.loV>=3),
     BTN:    !(h.hiV<=3&&!h.suited&&!h.pair),
-    SB:     h.pair||(h.hiV>=9)||(h.suited&&h.hiV>=6)||(h.hiV>=10&&h.loV>=6),
+    SB:     h.pair||(h.hiV>=7)||(h.suited&&h.hiV>=4)||(h.hiV>=8&&h.loV>=4),
   };
   const pct = {UTG:'~13%','UTG+1':'~14%','UTG+2':'~15%',MP:'~17%',HJ:'~20%',CO:'~25%',BTN:'~45%',SB:'~40%'};
   const shouldOpen = ranges[pos]||false;
