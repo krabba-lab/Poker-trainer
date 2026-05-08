@@ -102,10 +102,20 @@
 </head>
 <body>
 <h1>Poker Trainer <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Mørk</button></h1>
-<div id="mode-toggle" style="display:flex;gap:0;margin-bottom:14px;border-radius:8px;overflow:hidden;border:1px solid #ccc;width:fit-content">
+<div id="mode-toggle" style="display:flex;gap:0;margin-bottom:10px;border-radius:8px;overflow:hidden;border:1px solid #ccc;width:fit-content">
   <button id="btn-gto" onclick="setMode('gto')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#1a1a1a;color:#fff">GTO</button>
   <button id="btn-exploit" onclick="setMode('exploit')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#fff;color:#666">Exploit</button>
 </div>
+
+<details style="margin-bottom:10px;">
+  <summary style="font-size:12px;color:#888;cursor:pointer;user-select:none;">ℹ️ Om denne appen</summary>
+  <div style="font-size:12px;color:#666;line-height:1.6;margin-top:8px;padding:10px 12px;background:#f0f0ec;border-radius:8px;">
+    <p style="margin:0 0 6px"><strong>GTO Poker Trainer</strong> er et interaktivt læringsverktøy for å øve på preflop- og postflop-beslutninger i 9-max No-Limit Hold'em.</p>
+    <p style="margin:0 0 6px"><strong>GTO-modus</strong> trener deg på å spille unexploitable – åpne-ranger, 3-bet-spots og postflop c-bet-beslutninger basert på posisjon og håndstyrke. <strong>Exploit-modus</strong> introduserer fire arketypiske motstandertyper – Nit, Fish, Bernhard og Calling Station – og utfordrer deg til å justere strategien din deretter.</p>
+    <p style="margin:0 0 6px">⚠️ <em>Appen er ikke perfekt.</em> Rangene er forenklede og feedback-logikken er regelbasert, ikke hentet fra en GTO-solver. Noen situasjoner kan gi unøyaktig eller mangelfull tilbakemelding. Bruk den som et supplement til egen studie – ikke som fasit.</p>
+    <p style="margin:0">Appen er bygget fra bunnen av som et personlig prosjekt i samarbeid med Claude (Anthropic) – like mye et læringsverktøy i koding som i poker. Kildekoden ligger åpent på <a href="https://github.com/krabba-lab/Poker-trainer" target="_blank" style="color:#378add">GitHub</a>.</p>
+  </div>
+</details>
 <div id="scoreboard"></div>
 <div id="app"></div>
 
@@ -1130,12 +1140,19 @@ function nextStreet(street) {
   }
   state.phase=street;
   const pos = state.scenario.flopPos;
-  // When hero is OOP: villain (IP) always acts first - always check villain action
-  // When hero is IP: villain (OOP) acts first but checks often - hero then acts
   const vBets = villainBets(street, pos, null);
-  // Only show villain bet UI if villain actually bets
   state.villainBet = vBets ? villainSizing(street, null) : null;
   renderPhase();
+}
+
+function exploitNextStreet(street) {
+  if(street==='flop') exploitState.board = deal(3);
+  else exploitState.board = [...exploitState.board, ...deal(1)];
+  exploitState.phase = street;
+  const pos = exploitState.scenario.flopPos;
+  const vBets = villainBets(street, pos, exploitState.persona);
+  exploitState.villainBet = vBets ? villainSizing(street, exploitState.persona) : null;
+  renderExploit();
 }
 
 function showSummary() {
@@ -1536,16 +1553,6 @@ function exploitAnswer(act) {
 
   document.getElementById('result').innerHTML = `<div class="${cls}">${label} ${tip}</div>${btns}`;
   updateScore();
-}
-
-function exploitNextStreet(street) {
-  if(street==='flop') exploitState.board = deal(3);
-  else exploitState.board = [...exploitState.board, ...deal(1)];
-  exploitState.phase = street;
-  const pos = exploitState.scenario.flopPos;
-  const vBets = villainBets(street, pos, exploitState.persona);
-  exploitState.villainBet = vBets ? villainSizing(street, exploitState.persona) : null;
-  renderExploit();
 }
 
 function showExploitSummary() {
