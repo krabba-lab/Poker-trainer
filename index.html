@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="no">
 <head>
 <meta charset="UTF-8"/>
@@ -933,8 +934,8 @@ function evalFacingBet(hand, board, action, pos, street, pot, persona) {
         return {q:'good', msg:`✓ Fold er OK uten equity mot Bernhard.`};
       }
       if(pid==='nit'||pid==='station') {
-        if(hasEquity) return {q:'bad', msg:`✗ ${persona.name} bettar sjelden uten sterk hånd, men ${hl} har nok equity til å kalle.`};
-        return {q:'good', msg:`✓ Riktig fold – ${persona.name} bettar nesten bare for value.`};
+        if(hasEquity) return {q:'bad', msg:`✗ ${persona.name} better sjelden uten sterk hånd, men ${hl} har nok equity til å kalle.`};
+        return {q:'good', msg:`✓ Riktig fold – ${persona.name} better nesten bare for value.`};
       }
       if(strongHand) return {q:'bad', msg:`✗ Du folder sterk hånd! Call eller raise.`};
       return {q:'ok', msg:`~ Fold uten equity er akseptabelt.`};
@@ -946,7 +947,7 @@ function evalFacingBet(hand, board, action, pos, street, pot, persona) {
       }
       if(pid==='nit') {
         if(strongHand) return {q:'good', msg:`✓ Call med sterk hånd er riktig – nit har noe, men du også.`};
-        return {q:'bad', msg:`✗ Nit bettar nesten bare med sterke hender. Fold ${hl}.`};
+        return {q:'bad', msg:`✗ Nit better nesten bare med sterke hender. Fold ${hl}.`};
       }
       if(hasEquity) return {q:'good', msg:`✓ Call med ${hl} er riktig her.`};
       return {q:'bad', msg:`✗ For svak til å kalle. Fold ${hl}.`};
@@ -1038,15 +1039,22 @@ function renderPhase() {
 
   // Villain action on post-flop streets
   const vBet = state.villainBet;
+  const heroIsOOP = scenario.flopPos === 'OOP';
   if(phase!=='preflop' && vBet) {
     const villainLabel = scenario.villain || 'Motstander';
     html+=`<div style="background:#1a3a5c22;border:1px solid #378add44;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;">
-      💬 <strong>${villainLabel}</strong> bettter <strong>${vBet}</strong> av pot
+      💬 <strong>${villainLabel}</strong> better <strong>${vBet}</strong> av pot
     </div>`;
     html+=`<div class="section-label">Hva gjør du?</div>`;
     const facingActions=['Fold','Call','Raise 2.5x'];
     html+=`<div id="actions">${facingActions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answerFacing('${a}')">${a}</button>`).join('')}</div>`;
   } else {
+    if(phase!=='preflop' && heroIsOOP) {
+      const villainLabel = scenario.villain || 'Motstander';
+      html+=`<div style="background:#2a2a2a11;border:1px solid #ccc;border-radius:8px;padding:7px 12px;margin-bottom:8px;font-size:12px;color:#888;">
+        💬 <strong>${villainLabel}</strong> checker til deg
+      </div>`;
+    }
     html+=`<div class="section-label">Hva gjør du?</div>`;
     html+=`<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
   }
@@ -1121,9 +1129,11 @@ function nextStreet(street) {
     state.board=[...state.board,...deal(1)];
   }
   state.phase=street;
-  // Determine villain action
   const pos = state.scenario.flopPos;
+  // When hero is OOP: villain (IP) always acts first - always check villain action
+  // When hero is IP: villain (OOP) acts first but checks often - hero then acts
   const vBets = villainBets(street, pos, null);
+  // Only show villain bet UI if villain actually bets
   state.villainBet = vBets ? villainSizing(street, null) : null;
   renderPhase();
 }
@@ -1207,10 +1217,10 @@ const PERSONAS = [
       flop_bet_bluff:'Bluff mot nit funker godt – de folder alt de ikke har.',
       flop_check:    'Check mot nit er OK, men du mister fold equity du ellers hadde hatt.',
       turn_bet:      'Fortsett presset – nit folder turn enda mer enn flop.',
-      turn_check:    'Forsiktig – hvis nit bettter turn har de ofte en sterk hånd.',
+      turn_check:    'Forsiktig – hvis nit better turn har de ofte en sterk hånd.',
       river_bluff:   'River bluff funker godt mot nit – de folder uten showdown-verdi.',
       river_value:   'Nit caller sjelden river uten topp hånd – size down for thin value.',
-      call_nit_bet:  'Vær forsiktig – nit bettter sjelden uten sterk hånd. Fold marginal.',
+      call_nit_bet:  'Vær forsiktig – nit better sjelden uten sterk hånd. Fold marginal.',
       fold_nit_bet:  'Riktig! Mot nit sin bet er fold med svak hånd korrekt exploit.',
     }
   },
@@ -1231,8 +1241,8 @@ const PERSONAS = [
       turn_check:    'Hvis du har sterk hånd, bet! Fish gir deg ikke gratis showdown.',
       river_bluff:   '✗ Aldri bluff mot fish på river – de caller med alt.',
       river_value:   '✓ Value bet stort på river – fish kaller med svak par, alt.',
-      call_fish_bet: 'Fish bettter sjelden – de har noe. Call med ok hånd, fold søppel.',
-      fold_fish_bet: 'Kan være riktig – fish bettter bare med verdi.',
+      call_fish_bet: 'Fish better sjelden – de har noe. Call med ok hånd, fold søppel.',
+      fold_fish_bet: 'Kan være riktig – fish better bare med verdi.',
     }
   },
   {
@@ -1247,9 +1257,9 @@ const PERSONAS = [
       preflop_fold:  'Fold er for tight mot Bernhard – call bredere.',
       flop_bet_value:'Value bet mot Bernhard – de raiser med luft. Vær klar til å call raise.',
       flop_bet_bluff:'Bluff er risikabelt – Bernhard kaller eller raiser tilbake.',
-      flop_check:    'Check-raise mot Bernhard er kraftig – de bettar nesten alltid.',
+      flop_check:    'Check-raise mot Bernhard er kraftig – de better nesten alltid.',
       turn_bet:      'Bet for value – Bernhard kaller. Men vær klar for raise.',
-      turn_check:    'Check-call med medium hånd – Bernhard bettar deg.',
+      turn_check:    'Check-call med medium hånd – Bernhard better deg.',
       river_bluff:   'Risikabelt – Bernhard kaller river med mye.',
       river_value:   '✓ Value bet stort – Bernhard kaller med lufthender.',
       call_maniac_bet:'✓ Call mot Bernhard – de har ofte ingenting.',
@@ -1273,8 +1283,8 @@ const PERSONAS = [
       turn_check:    'Ikke gi gratis kort! Station kaller – bet for value.',
       river_bluff:   '✗ Aldri bluff mot station. De kaller river med ett par.',
       river_value:   '✓ Value bet maksimalt på river – station kaller med alt.',
-      call_station_bet:'Station bettar sjelden – vær forsiktig. De har noe.',
-      fold_station_bet:'Riktig – station bettar bare med sterk hånd.',
+      call_station_bet:'Station better sjelden – vær forsiktig. De har noe.',
+      fold_station_bet:'Riktig – station better bare med sterk hånd.',
     }
   },
 ];
@@ -1443,15 +1453,21 @@ function renderExploit() {
   html += `<hr class="divider"/>`;
 
   const vBet = exploitState.villainBet;
+  const heroIsOOP = scenario.flopPos === 'OOP';
   if(phase !== 'preflop' && vBet) {
     const sizing = vBet;
     html += `<div style="background:${persona.color}18;border:1px solid ${persona.color}44;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;">
-      💬 <strong>${persona.name}</strong> bettter <strong>${sizing}</strong> av pot
+      💬 <strong>${persona.name}</strong> better <strong>${sizing}</strong> av pot
     </div>`;
     html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
     const facingActions=['Fold','Call','Raise 2.5x'];
     html += `<div id="actions">${facingActions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswerFacing('${a}')">${a}</button>`).join('')}</div>`;
   } else {
+    if(phase !== 'preflop' && heroIsOOP) {
+      html += `<div style="background:#2a2a2a11;border:1px solid #ccc;border-radius:8px;padding:7px 12px;margin-bottom:8px;font-size:12px;color:#888;">
+        💬 <strong>${persona.name}</strong> checker til deg
+      </div>`;
+    }
     html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
     html += `<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
   }
@@ -1570,5 +1586,6 @@ if(localStorage.getItem('dark')==='1') {
 
 setMode('gto');
 </script>
+
 </body>
 </html>
