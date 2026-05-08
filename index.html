@@ -3,122 +3,233 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>GTO Hand Trainer – 9-max</title>
+<title>GTOsim</title>
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; background: #f7f6f3; margin: 0; padding: 0.75rem; color: #1a1a1a; max-width: 520px; }
-  h1 { font-size: 16px; font-weight: 500; margin: 0 0 8px; }
-  .suit-H { color: #c0392b; }
-  .suit-D { color: #1a6ab5; }
-  .suit-C { color: #1d9e75; }
-  .suit-S { color: #5a5a7a; }
-  .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: #e8e7e3; color: #666; margin-right: 5px; }
-  .badge.active { background: #1a1a1a; color: #fff; }
-  .section-label { font-size: 11px; color: #888; margin-bottom: 4px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
-  .divider { border: none; border-top: 0.5px solid #ddd; margin: 8px 0; }
-  .hand-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }
-  .card {
-    display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-    width: 36px; height: 50px; border-radius: 5px; border: 1px solid #ddd;
-    background: #fff; font-size: 15px; font-weight: 600; margin: 1px;
-    line-height: 1.1;
-  }
-  .card .rank { font-size: 15px; }
-  .card .suit-sym { font-size: 11px; }
-  .card.back { background: repeating-linear-gradient(45deg,#dce6f5,#dce6f5 3px,#c8d8ef 3px,#c8d8ef 6px); }
-  .action-btn {
-    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
-    cursor: pointer; border: 1px solid #ccc; background: #fff; color: #1a1a1a;
-    transition: background 0.1s; margin: 3px;
-  }
-  .action-btn:hover { background: #f0efec; }
-  .action-btn:disabled { opacity: 0.4; cursor: default; }
-  .action-btn.fold { border-color: #e24b4a; color: #e24b4a; }
-  .action-btn.call { border-color: #1d9e75; color: #1d9e75; }
-  .action-btn.raise { border-color: #378add; color: #378add; }
-  .action-btn.check { border-color: #ba7517; color: #ba7517; }
-  .result-good { background: #eaf3de; color: #3b6d11; border-radius: 8px; padding: 9px 12px; margin-top: 8px; font-size: 13px; line-height: 1.5; }
-  .result-ok   { background: #faeeda; color: #854f0b; border-radius: 8px; padding: 9px 12px; margin-top: 8px; font-size: 13px; line-height: 1.5; }
-  .result-bad  { background: #fcebeb; color: #a32d2d; border-radius: 8px; padding: 9px 12px; margin-top: 8px; font-size: 13px; line-height: 1.5; }
-  .next-btn { margin-top: 10px; padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; background: #1a1a1a; color: #fff; border: none; }
-  .next-btn:hover { opacity: 0.82; }
-  .new-hand-btn { margin-top: 10px; padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; background: #fff; color: #1a1a1a; border: 1px solid #ccc; margin-left: 6px; }
-  .new-hand-btn:hover { background: #f0efec; }
-  .score-row { display: flex; gap: 6px; margin-bottom: 8px; }
-  .score-card { background: #fff; border-radius: 6px; padding: 4px 10px; text-align: center; border: 0.5px solid #ddd; min-width: 50px; }
-  .score-card .num { font-size: 15px; font-weight: 500; }
-  .score-card .lbl { font-size: 9px; color: #888; }
-  .street-progress { display: flex; gap: 5px; margin-bottom: 8px; }
-  .street-dot { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: #e8e7e3; color: #888; }
-  .street-dot.done { background: #c0ddaf; color: #3b6d11; }
-  .street-dot.current { background: #1a1a1a; color: #fff; }
-  .summary-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 0.5px solid #eee; }
-  .summary-row:last-child { border-bottom: none; }
-  .tag-good { color: #3b6d11; font-weight: 500; }
-  .tag-ok { color: #854f0b; font-weight: 500; }
-  .tag-bad { color: #a32d2d; font-weight: 500; }
-  .dark-toggle { background: none; border: 1px solid #ccc; border-radius: 20px; padding: 3px 10px; font-size: 11px; cursor: pointer; color: #666; float: right; margin-top: 2px; }
-  p.desc { font-size: 13px; color: #555; margin: 0 0 4px; line-height: 1.4; }
-  body.dark { background: #141414; color: #e0e0e0; }
-  body.dark .badge { background: #2a2a2a; color: #aaa; }
-  body.dark .badge.active { background: #e0e0e0; color: #141414; }
-  body.dark .card { background: #fff; border-color: #ccc; }
-  body.dark .suit-S { color: #1a1a1a; }
-  body.dark .action-btn { background: #1e1e1e; border-color: #444; color: #e0e0e0; }
-  body.dark .action-btn:hover { background: #2a2a2a; }
-  body.dark .action-btn.fold { border-color: #e24b4a; color: #e24b4a; }
-  body.dark .action-btn.call { border-color: #1d9e75; color: #1d9e75; }
-  body.dark .action-btn.check { border-color: #ba7517; color: #ba7517; }
-  body.dark .action-btn.raise { border-color: #378add; color: #378add; }
-  body.dark .score-card { background: #1e1e1e; border-color: #333; }
-  body.dark .street-dot { background: #2a2a2a; color: #888; }
-  body.dark .street-dot.done { background: #2a4a1e; color: #7ec850; }
-  body.dark .street-dot.current { background: #e0e0e0; color: #141414; }
-  body.dark .divider { border-color: #333; }
-  body.dark .result-good { background: #1a2e10; color: #7ec850; }
-  body.dark .result-ok   { background: #2e1f08; color: #e8a44a; }
-  body.dark .result-bad  { background: #2e0f0f; color: #e86060; }
-  body.dark .next-btn { background: #e0e0e0; color: #141414; }
-  body.dark .new-hand-btn { background: #1e1e1e; color: #e0e0e0; border-color: #444; }
-  body.dark .new-hand-btn:hover { background: #2a2a2a; }
-  body.dark .summary-row { border-color: #333; }
-  body.dark .dark-toggle { border-color: #444; color: #aaa; }
-  body.dark .score-card { background: #1e1e1e; border-color: #333; }
-  body.dark .street-dot { background: #2a2a2a; color: #888; }
-  body.dark .street-dot.done { background: #2a4a1e; color: #7ec850; }
-  body.dark .street-dot.current { background: #e0e0e0; color: #141414; }
-  body.dark .divider { border-color: #333; }
-  body.dark .result-good { background: #1a2e10; color: #7ec850; }
-  body.dark .result-ok   { background: #2e1f08; color: #e8a44a; }
-  body.dark .result-bad  { background: #2e0f0f; color: #e86060; }
-  body.dark .next-btn { background: #e0e0e0; color: #141414; }
-  body.dark .new-hand-btn { background: #1e1e1e; color: #e0e0e0; border-color: #444; }
-  body.dark .new-hand-btn:hover { background: #2a2a2a; }
-  body.dark .summary-row { border-color: #333; }
-  body.dark .dark-toggle { border-color: #444; color: #aaa; }
-  body.dark { --range-bg: #1e1e1e; --range-border: #333; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#eef0f4;--surface:#fff;--surface2:#f2f4f7;--border:#dde0e8;
+  --text:#0e1018;--text2:#505868;--text3:#8890a0;
+  --accent:#3461e8;--accent2:#2450d0;
+  --fold:#d42828;--call:#148858;--raise:#3461e8;--check:#a86808;
+  --good-bg:#e4f2dc;--good-fg:#204e14;
+  --ok-bg:#fceeda;--ok-fg:#5e3606;
+  --bad-bg:#f8dede;--bad-fg:#6e1414;
+  --suit-H:#cc1c1c;--suit-D:#1c48b8;--suit-C:#137048;--suit-S:#101418;
+}
+body.dark{
+  --bg:#0c0e12;--surface:#131720;--surface2:#181d28;--border:#232840;
+  --text:#cdd0dc;--text2:#626880;--text3:#363c50;
+  --accent:#4470f0;--accent2:#3460e0;--suit-S:#5868a0;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:44px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.logo{font-size:14px;font-weight:600;letter-spacing:-0.2px;}
+.logo em{font-style:normal;color:var(--accent);}
+.seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px;gap:1px;}
+.seg-btn{padding:4px 14px;font-size:11px;font-weight:500;border:none;cursor:pointer;background:transparent;color:var(--text3);font-family:inherit;border-radius:4px;transition:all 0.15s;}
+.seg-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+.topbar-right{display:flex;gap:6px;}
+.top-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;}
+.top-btn:hover{background:var(--surface2);}
+
+/* LAYOUT */
+.layout{display:flex;max-width:1100px;margin:0 auto;min-height:calc(100vh - 44px);}
+.sidebar{width:210px;flex-shrink:0;border-right:1px solid var(--border);padding:16px;display:none;}
+@media(min-width:768px){.sidebar{display:block;}}
+.main{flex:1;padding:12px 14px;overflow-y:auto;}
+
+/* SIDEBAR */
+.sb-section{margin-bottom:20px;}
+.sb-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:8px;}
+.sb-pills{display:flex;gap:5px;}
+.sb-pill{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 4px;text-align:center;}
+.sb-pill .n{font-size:15px;font-weight:600;}
+.sb-pill .l{font-size:8px;color:var(--text3);margin-top:1px;}
+.sb-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;}
+.sb-key{color:var(--text3);}.sb-val{font-weight:500;}
+
+/* MOBILE SCORE */
+.m-score{display:flex;gap:5px;margin-bottom:10px;}
+@media(min-width:768px){.m-score{display:none;}}
+.m-pill{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 4px;text-align:center;}
+.m-pill .n{font-size:13px;font-weight:600;}
+.m-pill .l{font-size:8px;color:var(--text3);}
+
+/* STREETS */
+.streets{display:flex;gap:4px;margin-bottom:10px;}
+.s-dot{font-size:10px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface2);color:var(--text3);border:1px solid var(--border);}
+.s-dot.done{background:#d8eecb;color:#204e14;border-color:#b0d498;}
+.s-dot.cur{background:var(--accent);color:#fff;border-color:var(--accent);}
+body.dark .s-dot.done{background:#0e1c08;color:#5ab025;border-color:#1a3010;}
+
+/* BADGE */
+.s-badge{display:flex;gap:5px;align-items:center;margin-bottom:10px;}
+.badge-main{font-size:11px;font-weight:600;padding:3px 10px;border-radius:4px;background:var(--accent);color:#fff;}
+.badge-sub{font-size:11px;padding:3px 10px;border-radius:4px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+
+/* POKER TABLE — SVG-based for correct oval */
+.table-wrap{position:relative;width:100%;margin:4px 0 8px;user-select:none;}
+.table-svg{width:100%;display:block;}
+.table-seats{position:absolute;inset:0;}
+
+/* All seats positioned over SVG */
+.seat-node{
+  position:absolute;transform:translate(-50%,-50%);
+  background:rgba(20,28,52,0.85);
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:6px;padding:6px 10px;text-align:center;
+  min-width:52px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.seat-node.folded{opacity:0.28;}
+.seat-node.villain{background:rgba(18,36,110,0.9);border-color:rgba(80,130,255,0.7);}
+.seat-node.hero{background:var(--accent);border-color:var(--accent2);box-shadow:0 2px 14px rgba(52,97,232,0.45);}
+.seat-label{font-size:10px;font-weight:600;color:rgba(255,255,255,0.88);letter-spacing:0.04em;white-space:nowrap;}
+.seat-sub{font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.05em;margin-top:2px;}
+.seat-sub.v{color:rgba(120,170,255,1);font-weight:600;}
+.seat-hero-cards{display:flex;gap:3px;margin-top:4px;justify-content:center;}
+
+.d-chip{position:absolute;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#f0e030;border:1.5px solid #a89010;font-size:7px;font-weight:700;color:#6a5800;display:flex;align-items:center;justify-content:center;}
+
+/* ACTION PANEL */
+.action-panel{margin-top:4px;}
+.hand-preview{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.hand-preview-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);}
+.situation{font-size:12px;color:var(--text2);margin-bottom:7px;line-height:1.45;}
+.villain-act{display:flex;align-items:center;gap:8px;font-size:12px;padding:8px 12px;margin-bottom:8px;border-radius:6px;border:1px solid;}
+.villain-bet{background:rgba(52,97,232,0.06);border-color:rgba(52,97,232,0.2);}
+.villain-chk{background:var(--surface2);border-color:var(--border);color:var(--text3);}
+body.dark .villain-bet{background:rgba(68,112,240,0.1);border-color:rgba(68,112,240,0.25);}
+.act-row{display:flex;gap:7px;flex-wrap:wrap;}
+.act-btn{padding:10px 18px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all 0.12s;font-family:inherit;border-radius:6px;}
+.act-btn:hover{border-color:var(--text2);background:var(--surface2);}
+.act-btn:disabled{opacity:0.35;cursor:default;}
+.act-btn.fold{border-color:var(--fold);color:var(--fold);}
+.act-btn.call{border-color:var(--call);color:var(--call);}
+.act-btn.raise{border-color:var(--raise);color:var(--raise);}
+.act-btn.check{border-color:var(--check);color:var(--check);}
+.act-btn.fold:hover{background:rgba(212,40,40,0.04);}
+.act-btn.call:hover{background:rgba(20,136,88,0.04);}
+.act-btn.raise:hover{background:rgba(52,97,232,0.04);}
+.act-btn.check:hover{background:rgba(168,104,8,0.04);}
+
+/* RESULT */
+.res{padding:10px 14px;margin-top:8px;font-size:12px;line-height:1.55;border-radius:6px;border:1px solid;}
+.res.good{background:var(--good-bg);color:var(--good-fg);border-color:rgba(32,78,20,0.2);}
+.res.ok  {background:var(--ok-bg);  color:var(--ok-fg);  border-color:rgba(94,54,6,0.2);}
+.res.bad {background:var(--bad-bg); color:var(--bad-fg); border-color:rgba(110,20,20,0.2);}
+body.dark .res.good{background:#0c1a08;color:#5ab025;}
+body.dark .res.ok  {background:#181008;color:#c07025;}
+body.dark .res.bad {background:#180808;color:#d04848;}
+
+/* BUTTONS */
+.btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.next-btn{padding:9px 18px;font-size:12px;font-weight:500;cursor:pointer;background:var(--accent);color:#fff;border:none;font-family:inherit;border-radius:6px;transition:background 0.12s;}
+.next-btn:hover{background:var(--accent2);}
+.sec-btn{padding:9px 14px;font-size:12px;font-weight:400;cursor:pointer;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:inherit;border-radius:6px;}
+.sec-btn:hover{background:var(--surface2);}
+
+/* CARDS */
+.card{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:40px;height:54px;border:1px solid var(--border);background:#fff;font-weight:600;line-height:1.1;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.card.sm{width:32px;height:44px;}
+.card.sm .rank{font-size:14px;}.card.sm .suit-sym{font-size:10px;}
+.card .rank{font-size:16px;}.card .suit-sym{font-size:11px;}
+.card.back{background:repeating-linear-gradient(45deg,#c4d0e8,#c4d0e8 3px,#adbcd4 3px,#adbcd4 6px);}
+.suit-H{color:var(--suit-H);}.suit-D{color:var(--suit-D);}.suit-C{color:var(--suit-C);}.suit-S{color:var(--suit-S);}
+@keyframes cardDeal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+.board-card-wrap{opacity:0;animation:cardDeal 0.2s ease forwards;}
+
+/* SUMMARY */
+.sum-row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);}
+.sum-row:last-child{border-bottom:none;}
+.tg{color:var(--good-fg);font-weight:600;}.tok{color:var(--ok-fg);font-weight:600;}.tb{color:var(--bad-fg);font-weight:600;}
+
+/* RANGE ACCORDION */
+.range-accordion{border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;}
+.range-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;background:var(--surface2);font-size:11px;font-weight:500;color:var(--text2);border:none;width:100%;font-family:inherit;text-align:left;}
+.range-toggle:hover{background:var(--border);}
+.range-chevron{font-size:10px;color:var(--text3);transition:transform 0.2s;}
+.range-chevron.open{transform:rotate(180deg);}
+.range-body{display:none;padding:8px 10px;background:var(--surface);}
+.range-body.open{display:block;}
+.range-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;color:var(--text3);}
+.mobile-range{display:block;}
+@media(min-width:768px){.mobile-range{display:none;}}
+
+/* legacy compat */
+.range-btn{display:none;}
+.range-box{background:var(--surface);}
+
+/* PERSONA */
+.persona-banner{border-radius:6px;padding:8px 12px;margin-bottom:8px;border:1px solid;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.45);justify-content:center;align-items:center;padding:1rem;}
+.modal-box{background:var(--surface);border-radius:10px;padding:20px;max-width:380px;width:100%;max-height:80vh;overflow-y:auto;position:relative;border:1px solid var(--border);}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--text3);}
+.modal-title{font-size:14px;font-weight:600;margin-bottom:10px;}
+.modal-p{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:8px;}
 </style>
 </head>
 <body>
-<h1>Poker Trainer <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Mørk</button><button onclick="toggleAbout()" style="background:none;border:1px solid #ccc;border-radius:50%;width:22px;height:22px;font-size:11px;font-weight:600;cursor:pointer;color:#888;float:right;margin-top:2px;margin-right:6px;line-height:1;padding:0;">i</button></h1>
 
-<div id="about-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;padding:1rem;">
-  <div id="about-box" style="background:#fff;border-radius:12px;padding:20px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;position:relative;">
-    <button onclick="toggleAbout()" style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:18px;cursor:pointer;color:#888;line-height:1;">✕</button>
-    <h2 style="font-size:15px;font-weight:600;margin:0 0 10px">Om GTO Poker Trainer</h2>
-    <p style="font-size:13px;color:#555;line-height:1.6;margin:0 0 8px">Et interaktivt læringsverktøy for å øve på preflop- og postflop-beslutninger i 9-max No-Limit Hold'em.</p>
-    <p style="font-size:13px;color:#555;line-height:1.6;margin:0 0 8px"><strong>GTO-modus</strong> trener deg på å spille unexploitable – åpne-ranger, 3-bet-spots og postflop-beslutninger basert på posisjon og håndstyrke. <strong>Exploit-modus</strong> introduserer fire arketypiske motstandertyper og utfordrer deg til å justere strategien din deretter.</p>
-    <p style="font-size:13px;color:#888;line-height:1.6;margin:0 0 8px">⚠️ Appen er ikke perfekt. Rangene er forenklede og feedback er regelbasert – ikke hentet fra en GTO-solver. Noen situasjoner kan gi unøyaktig tilbakemelding. Bruk den som et supplement til egen studie, ikke som fasit.</p>
-    <p style="font-size:13px;color:#555;line-height:1.6;margin:0">Bygget som et personlig prosjekt i samarbeid med Claude (Anthropic) – like mye et læringsverktøy i koding som i poker. Kode på <a href="https://github.com/krabba-lab/Poker-trainer" target="_blank" style="color:#378add">GitHub</a>.</p>
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">GTO <em>Poker Simulator</em></div>
+    <div class="seg">
+      <button class="seg-btn active" id="btn-gto" onclick="setMode('gto')">GTO</button>
+      <button class="seg-btn" id="btn-exploit" onclick="setMode('exploit')">Exploit</button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="top-btn" onclick="toggleDark()" id="darkBtn">◐</button>
+    <button class="top-btn" onclick="toggleAbout()">i</button>
   </div>
 </div>
 
-<div id="mode-toggle" style="display:flex;gap:0;margin-bottom:10px;border-radius:8px;overflow:hidden;border:1px solid #ccc;width:fit-content">
-  <button id="btn-gto" onclick="setMode('gto')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#1a1a1a;color:#fff">GTO</button>
-  <button id="btn-exploit" onclick="setMode('exploit')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#fff;color:#666">Exploit</button>
+<div class="modal-overlay" id="about-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="toggleAbout()">✕</button>
+    <div class="modal-title">Om GTOsim</div>
+    <p class="modal-p">Et interaktivt læringsverktøy for preflop- og postflop-beslutninger i 9-max No-Limit Hold'em.</p>
+    <p class="modal-p"><strong>GTO-modus</strong> trener deg på unexploitable play – åpne-ranger, 3-bet-spots og postflop basert på posisjon og håndstyrke. <strong>Exploit-modus</strong> introduserer fire motstandertyper og utfordrer deg til å justere strategien.</p>
+    <p class="modal-p" style="color:var(--text3)">⚠️ Appen er ikke perfekt. Rangene er forenklede og feedback er regelbasert – ikke fra en GTO-solver. Bruk som supplement, ikke fasit.</p>
+    <p class="modal-p">Bygget i samarbeid med Claude (Anthropic) – et læringsverktøy i like stor grad for koding som poker. Kode på <a href="https://github.com/krabba-lab/Poker-trainer" target="_blank" style="color:var(--accent)">GitHub</a>.</p>
+  </div>
 </div>
-<div id="scoreboard"></div>
-<div id="app"></div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">Score</div>
+      <div class="sb-pills">
+        <div class="sb-pill"><div class="n" style="color:var(--good-fg)" id="s-correct">0</div><div class="l">Riktig</div></div>
+        <div class="sb-pill"><div class="n" style="color:var(--ok-fg)" id="s-ok">0</div><div class="l">Marginal</div></div>
+        <div class="sb-pill"><div class="n" style="color:var(--bad-fg)" id="s-wrong">0</div><div class="l">Feil</div></div>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Spot</div>
+      <div class="sb-row"><span class="sb-key">Posisjon</span><span class="sb-val" id="si-pos">–</span></div>
+      <div class="sb-row"><span class="sb-key">Street</span><span class="sb-val" id="si-street">–</span></div>
+      <div class="sb-row"><span class="sb-key">Pot</span><span class="sb-val" id="si-pot">–</span></div>
+      <div class="sb-row"><span class="sb-key">IP/OOP</span><span class="sb-val" id="si-oop">–</span></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="toggleSidebarRange()">
+        Range Advisor <span id="sb-range-chevron" style="font-size:10px;color:var(--text3);">▾</span>
+      </div>
+      <div id="sidebar-range-content" style="display:none;"><span style="font-size:10px;color:var(--text3)">Spill et preflop-spot</span></div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="m-score" id="scoreboard"></div>
+    <div id="app"></div>
+  </div>
+</div>
 
 <script>
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -603,88 +714,121 @@ function newHand() {
 }
 
 // ── TABLE VISUALIZATION ───────────────────────────────────────────────────────
-// Clockwise from BTN (top-center): BTN, SB, BB, UTG, UTG+1, UTG+2, MP, HJ, CO
-// Positions as % on an oval, viewed from above. BTN at top-center.
-// Oval: cx=50%, cy=50%, rx=42%, ry=38%
-// Angle 0 = top, clockwise. 9 seats evenly spaced.
-function seatXY(i, total) {
-  const angle = (i / total) * 2 * Math.PI - Math.PI / 2;
-  const x = 50 + 44 * Math.cos(angle);
-  const y = 50 + 40 * Math.sin(angle);
-  return {x, y};
+const ALL_POS = ['UTG','UTG+1','UTG+2','MP','HJ','CO','BTN','SB','BB'];
+
+// SVG viewBox is 400x200. Oval: cx=200, cy=90, rx=185, ry=82
+// 9 seat positions on the oval edge, clockwise from top:
+// Slot 0 = top-center (12 o'clock), slot 4 = bottom-center (6 o'clock) = HERO
+// Angles in degrees, 0 = top, clockwise
+const SEAT_ANGLES = [-90, -50, -10, 30, 90, 150, 190, 230, 270];
+// cx=200, cy=90, rx=190, ry=86 (slightly outside oval)
+function seatXYfromAngle(deg) {
+  const rad = deg * Math.PI / 180;
+  return {
+    x: 200 + 198 * Math.cos(rad),
+    y: 90  + 92  * Math.sin(rad)
+  };
 }
 
-// Order clockwise from top: BTN at index 0
-const SEAT_ORDER = ['BTN','SB','BB','UTG','UTG+1','UTG+2','MP','HJ','CO'];
+function tableHTML(scenario, board, hand, phase) {
+  const heroPos = scenario.hero;
+  const villainPos = scenario.villain;
+  const heroIdx = ALL_POS.indexOf(heroPos);
+  const villainIdx = villainPos ? ALL_POS.indexOf(villainPos) : -1;
 
-function tableHTML(scenario) {
-  const hero=scenario.hero;
-  const villain=scenario.villain;
-  const allPos=['UTG','UTG+1','UTG+2','MP','HJ','CO','BTN','SB','BB'];
-  const heroIdx=allPos.indexOf(hero);
-  const villainIdx=villain?allPos.indexOf(villain):-1;
-
-  function seatStatus(pos) {
-    if(pos===hero) return 'hero';
-    if(pos===villain) return 'villain';
-    const idx=allPos.indexOf(pos);
-    const isRFI=!scenario.villain||scenario.tag.startsWith('RFI');
+  function seatStatus(posName) {
+    if(posName === heroPos) return 'hero';
+    if(posName === villainPos) return 'villain';
+    const idx = ALL_POS.indexOf(posName);
+    const isRFI = !scenario.villain || scenario.tag.startsWith('RFI');
     if(isRFI) return 'active';
-    if(idx<villainIdx) return 'folded';
-    if(idx>villainIdx&&idx<heroIdx) return 'folded';
+    if(idx < villainIdx) return 'folded';
+    if(idx > villainIdx && idx < heroIdx) return 'folded';
     return 'active';
   }
 
-  const isDark=document.body.classList.contains('dark');
-  const seats = SEAT_ORDER.map((pos,i)=>{
-    const {x,y}=seatXY(i,9);
-    const status=seatStatus(pos);
-    const isHero=status==='hero';
-    const isVillain=status==='villain';
-    const isFolded=status==='folded';
-    const bg=isHero?'#1a1a1a':isVillain?'#378add':isFolded?(isDark?'#2a2a2a':'#e0e0e0'):(isDark?'#2a2a2a':'#fff');
-    const color=isHero?'#fff':isVillain?'#fff':isFolded?(isDark?'#555':'#aaa'):(isDark?'#ccc':'#444');
-    const border=isHero?'none':isVillain?'none':`1px solid ${isDark?'#444':'#ccc'}`;
-    const label=pos==='UTG+2'?'U+2':pos==='UTG+1'?'U+1':pos;
-    const shadow=isHero?'0 2px 8px rgba(0,0,0,0.5)':isVillain?'0 2px 8px rgba(55,138,221,0.5)':'none';
-    return `<div style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
-      background:${bg};color:${color};border:${border};border-radius:20px;
-      padding:3px 8px;font-size:10px;font-weight:600;white-space:nowrap;box-shadow:${shadow};
-      z-index:2;">${label}${isHero?' ★':''}</div>`;
+  // Build 9 seat nodes. Hero = slot 4 (bottom, angle 90°)
+  // slot k → ALL_POS[(heroIdx + k - 4 + 9) % 9]
+  const seatNodes = SEAT_ANGLES.map((deg, slot) => {
+    const posIdx = (heroIdx + slot - 4 + 9) % 9;
+    const posName = ALL_POS[posIdx];
+    const {x, y} = seatXYfromAngle(deg);
+    const pct_x = (x / 400 * 100).toFixed(2);
+    const pct_y = (y / 200 * 100).toFixed(2);
+    const status = seatStatus(posName);
+    const label = posName==='UTG+2'?'U+2':posName==='UTG+1'?'U+1':posName;
+    const actionLbl = status==='villain' ? 'RAISE 2.5bb' : status==='folded' ? 'FOLD' : '';
+    const subHTML = actionLbl
+      ? `<div class="seat-sub${status==='villain'?' v':''}">${actionLbl}</div>`
+      : '';
+    const heroCards = status==='hero' && hand
+      ? `<div class="seat-hero-cards">${hand.map(c=>cardHTML(c,'sm')).join('')}</div>`
+      : status==='hero'
+      ? `<div class="seat-hero-cards"><div class="card sm back"></div><div class="card sm back"></div></div>`
+      : '';
+    return `<div class="seat-node ${status}" style="left:${pct_x}%;top:${pct_y}%;">
+      <div class="seat-label">${label}</div>${subHTML}${heroCards}
+    </div>`;
   }).join('');
 
-  // Dealer button chip near BTN
-  const btnXY=seatXY(0,9);
-  const chipX=50+(btnXY.x-50)*0.72;
-  const chipY=50+(btnXY.y-50)*0.72;
-  const dealerChip=`<div style="position:absolute;left:${chipX}%;top:${chipY}%;transform:translate(-50%,-50%);
-    width:16px;height:16px;border-radius:50%;background:#f5e642;border:2px solid #c8b800;
-    font-size:8px;font-weight:700;color:#7a6e00;display:flex;align-items:center;justify-content:center;z-index:3;">D</div>`;
+  // Dealer chip near BTN
+  const btnSlot = (ALL_POS.indexOf('BTN') - heroIdx + 4 + 9) % 9;
+  const btnAngle = SEAT_ANGLES[btnSlot];
+  const btnRad = btnAngle * Math.PI / 180;
+  const chipX = ((200 + 160 * Math.cos(btnRad)) / 400 * 100).toFixed(2);
+  const chipY = ((90  + 72  * Math.sin(btnRad)) / 200 * 100).toFixed(2);
+  const dealerChip = `<div class="d-chip" style="left:${chipX}%;top:${chipY}%;">D</div>`;
 
-  const feltColor=isDark?'#1a3a22':'#2d7a3a';
-  const feltBorder=isDark?'#0f2216':'#1e5c2a';
-  const railColor=isDark?'#3a1a0a':'#7b3a10';
-  const railBorder=isDark?'#2a1005':'#5c2a08';
+  // Board cards
+  const boardSlots = [0,1,2,3,4].map(i => {
+    if(board && board[i])
+      return `<div class="board-card-wrap" style="animation-delay:${i*0.07}s">${cardHTML(board[i],'sm')}</div>`;
+    const show = false; // no placeholders
+    return show ? '' : '';
+  }).join('');
+
+  const pot = scenario.flopPotBB || 5.5;
+
+  // SVG oval — lighter blue tones
+  const svgTable = `<svg class="table-svg" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="feltGrad" cx="50%" cy="50%" r="55%">
+        <stop offset="0%" stop-color="#2a4080"/>
+        <stop offset="100%" stop-color="#1a2d60"/>
+      </radialGradient>
+      <filter id="innerShadow">
+        <feFlood flood-color="rgba(0,0,0,0.4)" result="color"/>
+        <feComposite in="color" in2="SourceGraphic" operator="in" result="shadow"/>
+        <feGaussianBlur in="shadow" stdDeviation="6"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+    <!-- Rail -->
+    <ellipse cx="200" cy="100" rx="196" ry="96" fill="#182040" stroke="#2e4880" stroke-width="2"/>
+    <!-- Felt -->
+    <ellipse cx="200" cy="100" rx="183" ry="84" fill="url(#feltGrad)"/>
+    <!-- Inner shadow hint -->
+    <ellipse cx="200" cy="100" rx="183" ry="84" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="8"/>
+    <!-- Brand -->
+    <text x="200" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" font-weight="300" fill="rgba(255,255,255,0.06)" letter-spacing="5">GTOSIM.NO</text>
+    <!-- Pot -->
+    <text x="200" y="62" text-anchor="middle" font-family="Inter,sans-serif" font-size="6" fill="rgba(255,255,255,0.22)" letter-spacing="2">POT</text>
+    <text x="200" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.75)">${pot}bb</text>
+  </svg>`;
+
+  // Board cards overlay (centered in SVG area)
+  const boardOverlay = `<div style="position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);display:flex;gap:4px;pointer-events:none;align-items:center;">
+    ${boardSlots}
+  </div>`;
 
   return `
-  <div style="position:relative;width:100%;padding-bottom:46%;margin:4px 0;">
-    <!-- Rail (outer rim) -->
-    <div style="position:absolute;inset:0;border-radius:50%/45%;background:${railColor};border:2px solid ${railBorder};"></div>
-    <!-- Felt surface -->
-    <div style="position:absolute;inset:5%;border-radius:50%/45%;background:${feltColor};border:2px solid ${feltBorder};box-shadow:inset 0 4px 20px rgba(0,0,0,0.4);">
-      <!-- Table logo -->
-      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-        color:rgba(255,255,255,0.12);font-size:13px;font-weight:700;letter-spacing:2px;
-        text-transform:uppercase;white-space:nowrap;">krabba-lab</div>
+  <div class="table-wrap">
+    ${svgTable}
+    <div class="table-seats">
+      ${boardOverlay}
+      ${dealerChip}
+      ${seatNodes}
     </div>
-    ${dealerChip}
-    ${seats}
-  </div>
-  <div style="display:flex;gap:8px;font-size:10px;margin-bottom:4px;flex-wrap:wrap;color:${isDark?'#aaa':'#666'}">
-    <span><span style="display:inline-block;width:8px;height:8px;background:#1a1a1a;border-radius:50%;margin-right:3px;vertical-align:middle"></span>Du</span>
-    <span><span style="display:inline-block;width:8px;height:8px;background:#378add;border-radius:50%;margin-right:3px;vertical-align:middle"></span>Motstander</span>
-    <span><span style="display:inline-block;width:8px;height:8px;background:${isDark?'#333':'#e0e0e0'};border:1px solid ${isDark?'#444':'#ccc'};border-radius:50%;margin-right:3px;vertical-align:middle"></span>Foldet</span>
-    <span><span style="display:inline-block;width:8px;height:8px;background:${isDark?'#2a2a2a':'#fff'};border:1px solid ${isDark?'#444':'#ccc'};border-radius:50%;margin-right:3px;vertical-align:middle"></span>Aktiv</span>
   </div>`;
 }
 
@@ -864,23 +1008,26 @@ function handGridHTML(scenario, heroHand) {
 function rangeTableHTML(scenario, hand) {
   const pos = scenario.hero;
   const villain = scenario.villain;
-  const title = `${pos}${villain?' vs '+villain:''} – Range`;
-
+  const title = `${pos}${villain?' vs '+villain:''} — Range`;
   return `
-  <div id="range-box" style="display:none;background:var(--range-bg,#f0f0ec);border-radius:8px;padding:10px 12px;margin-bottom:10px;border:1px solid var(--range-border,#ddd)">
-    <div style="font-size:11px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">${title}</div>
-    ${handGridHTML(scenario, hand)}
-  </div>
-  <button onclick="toggleRange()" id="range-btn" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid #ccc;background:transparent;cursor:pointer;color:#666;margin-bottom:10px">📋 Vis range</button>`;
+  <div class="range-accordion mobile-range">
+    <button class="range-toggle" onclick="toggleRange(this)" id="range-btn">
+      <span>📋 ${title}</span>
+      <span class="range-chevron" id="range-chevron">▾</span>
+    </button>
+    <div class="range-body" id="range-box">
+      ${handGridHTML(scenario, hand)}
+    </div>
+  </div>`;
 }
 
-function toggleRange() {
-  const box=document.getElementById('range-box');
-  const btn=document.getElementById('range-btn');
-  if(!box) return;
-  const show=box.style.display==='none';
-  box.style.display=show?'block':'none';
-  btn.textContent=show?'📋 Skjul range':'📋 Vis range';
+function toggleRange(btn) {
+  const body = document.getElementById('range-box');
+  const chevron = document.getElementById('range-chevron');
+  if(!body) return;
+  const open = body.classList.toggle('open');
+  if(chevron) chevron.classList.toggle('open', open);
+  if(btn) btn.classList.toggle('open', open);
 }
 
 // ── VILLAIN ACTION ENGINE ─────────────────────────────────────────────────────
@@ -1007,72 +1154,78 @@ function renderPhase() {
   const {phase,scenario,hand,board}=state;
   const streets=['preflop','flop','turn','river'];
   const si=streets.indexOf(phase);
+  const pot = phase==='preflop' ? scenario.flopPotBB : calcPot(scenario.flopPotBB, state.prevActions.slice(1));
 
-  // Progress bar
-  const progress=streets.map((s,i)=>`<span class="street-dot ${i<si?'done':i===si?'current':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
+  // Update sidebar
+  const siPos=document.getElementById('si-pos'); if(siPos) siPos.textContent=scenario.hero;
+  const siSt=document.getElementById('si-street'); if(siSt) siSt.textContent=phase.charAt(0).toUpperCase()+phase.slice(1);
+  const siPot=document.getElementById('si-pot'); if(siPot) siPot.textContent=pot+'bb';
+  const siOop=document.getElementById('si-oop'); if(siOop) siOop.textContent=scenario.flopPos==='IP'?'In Position':'Out of Position';
 
-  let html=`<div class="street-progress">${progress}</div>`;
-  html+=`<div class="info-row"><span class="badge active">${scenario.tag}</span><span class="badge">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
-  html+=tableHTML(scenario);
+  const progress=streets.map((s,i)=>`<span class="s-dot ${i<si?'done':i===si?'cur':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
+  let html=`<div class="streets">${progress}</div>`;
+  html+=`<div class="s-badge"><span class="badge-main">${scenario.tag}</span><span class="badge-sub">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
 
-  // Hand cards
-  html+=`<div class="section-label">Din hånd</div><div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}`;
+  // Table with board cards and hero cards embedded
+  html += tableHTML(scenario, board, hand, phase);
 
-  // Board
-  if(board.length>0) {
-    html+=`<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`;
-  }
-  html+=`</div>`;
-
-  // Description + pot
   let desc='', actions=[], evalFn;
   if(phase==='preflop') {
     desc=scenario.preflopDesc;
     actions=scenario.preflopActions;
     evalFn=(a)=>scenario.preflopEval(hand,a);
   } else if(phase==='flop') {
-    desc=`Du er ${scenario.flopPos==='IP'?'IP (in position)':'OOP (out of position)'}. Pot: ${scenario.flopPotBB}bb.`;
+    desc=`Du er ${scenario.flopPos==='IP'?'IP':'OOP'}. Pot: ${scenario.flopPotBB}bb.`;
     actions=scenario.flopActions;
     evalFn=(a)=>scenario.flopEval(hand,board,a);
   } else if(phase==='turn') {
-    const pot=calcPot(scenario.flopPotBB,state.prevActions.slice(1));
     desc=`Turn. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}. Pot: ~${pot}bb.`;
     actions=scenario.turnActions;
     evalFn=(a)=>scenario.turnEval(hand,board,a,state.prevActions);
   } else {
-    const pot=calcPot(scenario.flopPotBB,state.prevActions.slice(1));
     desc=`River. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}. Pot: ~${pot}bb.`;
     actions=scenario.riverActions;
     evalFn=(a)=>scenario.riverEval(hand,board,a,state.prevActions);
   }
 
-  html+=`<p class="desc">${desc}</p>`;
-  if(phase==='preflop') html+=rangeTableHTML(scenario, hand);
-  html+=`<hr class="divider"/>`;
+  html+=`<div class="action-panel">`;
 
-  // Villain action on post-flop streets
-  const vBet = state.villainBet;
-  const heroIsOOP = scenario.flopPos === 'OOP';
-  if(phase!=='preflop' && vBet) {
-    const villainLabel = scenario.villain || 'Motstander';
-    html+=`<div style="background:#1a3a5c22;border:1px solid #378add44;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;">
-      💬 <strong>${villainLabel}</strong> better <strong>${vBet}</strong> av pot
+  // Show hand clearly below table
+  if(board.length > 0) {
+    html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-right:2px;">Hånd</div>
+      ${hand.map(c=>cardHTML(c)).join('')}
+      <span style="color:var(--border);margin:0 2px;">|</span>
+      ${board.map(c=>cardHTML(c)).join('')}
     </div>`;
-    html+=`<div class="section-label">Hva gjør du?</div>`;
-    const facingActions=['Fold','Call','Raise 2.5x'];
-    html+=`<div id="actions">${facingActions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answerFacing('${a}')">${a}</button>`).join('')}</div>`;
-  } else {
-    if(phase!=='preflop' && heroIsOOP) {
-      const villainLabel = scenario.villain || 'Motstander';
-      html+=`<div style="background:#2a2a2a11;border:1px solid #ccc;border-radius:8px;padding:7px 12px;margin-bottom:8px;font-size:12px;color:#888;">
-        💬 <strong>${villainLabel}</strong> checker til deg
-      </div>`;
-    }
-    html+=`<div class="section-label">Hva gjør du?</div>`;
-    html+=`<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
   }
-  html+=`<div id="result"></div>`;
 
+  // Range
+  if(phase==='preflop') {
+    html+=`<div class="mobile-range">${rangeTableHTML(scenario, hand)}</div>`;
+    const sr=document.getElementById('sidebar-range-content');
+    if(sr) sr.innerHTML=handGridHTML(scenario,hand);
+  } else {
+    const sr=document.getElementById('sidebar-range-content');
+    if(sr) sr.innerHTML='<span style="font-size:10px;color:var(--text3)">Kun tilgjengelig på preflop</span>';
+  }
+
+  // Villain action
+  const vBet=state.villainBet;
+  const heroIsOOP=scenario.flopPos==='OOP';
+  if(phase!=='preflop'&&vBet) {
+    const vl=scenario.villain||'Motstander';
+    html+=`<div class="villain-act villain-bet">💬 <strong>${vl}</strong> better <strong>${vBet}</strong> av pot</div>`;
+    html+=`<div class="act-row" id="actions">${['Fold','Call','Raise 2.5x'].map(a=>`<button class="act-btn ${btnClass(a)}" onclick="answerFacing('${a}')">${a}</button>`).join('')}</div>`;
+  } else {
+    if(phase!=='preflop'&&heroIsOOP) {
+      const vl=scenario.villain||'Motstander';
+      html+=`<div class="villain-act villain-chk">💬 <strong>${vl}</strong> checker til deg</div>`;
+    }
+    html+=`<p class="situation">${desc}</p>`;
+    html+=`<div class="act-row" id="actions">${actions.map(a=>`<button class="act-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
+  }
+  html+=`<div id="result"></div></div>`;
   document.getElementById('app').innerHTML=html;
   state._evalFn=evalFn;
 }
@@ -1086,7 +1239,7 @@ function answerFacing(act) {
   else if(res.q==='ok') score.ok++;
   else score.wrong++;
 
-  const cls=res.q==='good'?'result-good':res.q==='ok'?'result-ok':'result-bad';
+  const cls=res.q==='good'?'res good':res.q==='ok'?'res ok':'res bad';
   document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
 
   const streets=['preflop','flop','turn','river'];
@@ -1097,10 +1250,10 @@ function answerFacing(act) {
 
   let btns='';
   if(!isLast) btns+=`<button class="next-btn" onclick="nextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
-  btns+=`<button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
-  if(isLast) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
+  btns+=`<button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
+  if(isLast) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
 
-  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div>${btns}`;
+  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div><div class="btn-row">${btns}</div>`;
   updateScore();
 }
 
@@ -1114,7 +1267,7 @@ function answer(act) {
   else if(res.q==='ok') score.ok++;
   else score.wrong++;
 
-  const cls=res.q==='good'?'result-good':res.q==='ok'?'result-ok':'result-bad';
+  const cls=res.q==='good'?'res good':res.q==='ok'?'res ok':'res bad';
   document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
 
   const streets=['preflop','flop','turn','river'];
@@ -1128,10 +1281,10 @@ function answer(act) {
   if(!isLastStreet&&!isPreflopFold) {
     btns+=`<button class="next-btn" onclick="nextStreet('${nextStreet}')">Neste: ${nextStreet.charAt(0).toUpperCase()+nextStreet.slice(1)} →</button>`;
   }
-  btns+=`<button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
-  if(isLastStreet||isPreflopFold) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newHand()">Ny hånd</button>`;
+  btns+=`<button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
+  if(isLastStreet||isPreflopFold) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
 
-  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div>${btns}`;
+  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div><div class="btn-row">${btns}</div>`;
   updateScore();
 }
 
@@ -1162,21 +1315,21 @@ function showSummary() {
   const {handScore,scenario,hand,board}=state;
   const streets=['Preflop','Flop','Turn','River'];
   const labels={good:'✓ Riktig',ok:'~ Marginal',bad:'✗ Feil'};
-  const cls={good:'tag-good',ok:'tag-ok',bad:'tag-bad'};
+  const cls={good:'tg',ok:'tok',bad:'tb'};
   let rows='';
   handScore.forEach((q,i)=>{
-    rows+=`<div class="summary-row"><span>${streets[i]||'Street '+(i+1)}</span><span class="${cls[q]}">${labels[q]}</span></div>`;
+    rows+=`<div class="sum-row"><span>${streets[i]||'Street '+(i+1)}</span><span class="${cls[q]}">${labels[q]}</span></div>`;
   });
   const good=handScore.filter(q=>q==='good').length;
   const total=handScore.length;
   document.getElementById('app').innerHTML=`
-    <div class="section-label">Håndoppsummering</div>
-    <div style="background:#fff;border-radius:10px;border:0.5px solid #ddd;padding:12px 16px;margin-bottom:12px">
+    <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:8px">Håndoppsummering</div>
+    <div style="background:var(--surface);border-radius:8px;border:1px solid var(--border);padding:12px 14px;margin-bottom:10px">
       ${rows}
-      <div style="margin-top:10px;font-size:13px;color:#555">Riktige beslutninger: <strong>${good}/${total}</strong></div>
+      <div style="margin-top:8px;font-size:12px;color:var(--text2)">Riktige: <strong>${good}/${total}</strong></div>
     </div>
-    <div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}${board.length?`<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`:''}</div>
-    <button class="next-btn" onclick="newHand()" style="margin-top:14px">Ny hånd</button>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">${hand.map(c=>cardHTML(c)).join('')}${board.length?`<span style="color:var(--border);font-size:18px;margin:0 3px;align-self:center">|</span>${board.map(c=>cardHTML(c,'sm')).join('')}`:''}</div>
+    <button class="next-btn" onclick="newHand()">Ny hånd</button>
   `;
   updateScore();
 }
@@ -1192,13 +1345,12 @@ function btnClass(a) {
 
 function updateScore() {
   const total=score.correct+score.ok+score.wrong;
-  if(total===0){document.getElementById('scoreboard').innerHTML='';return;}
-  document.getElementById('scoreboard').innerHTML=`
-    <div class="score-row">
-      <div class="score-card"><div class="num" style="color:#3b6d11">${score.correct}</div><div class="lbl">Riktig</div></div>
-      <div class="score-card"><div class="num" style="color:#854f0b">${score.ok}</div><div class="lbl">Marginal</div></div>
-      <div class="score-card"><div class="num" style="color:#a32d2d">${score.wrong}</div><div class="lbl">Feil</div></div>
-    </div>`;
+  document.getElementById('scoreboard').innerHTML=total===0?'':`
+    <div class="m-pill"><div class="n" style="color:var(--good-fg)">${score.correct}</div><div class="l">Riktig</div></div>
+    <div class="m-pill"><div class="n" style="color:var(--ok-fg)">${score.ok}</div><div class="l">Marginal</div></div>
+    <div class="m-pill"><div class="n" style="color:var(--bad-fg)">${score.wrong}</div><div class="l">Feil</div></div>`;
+  const sc=document.getElementById('s-correct');
+  if(sc){sc.textContent=score.correct;document.getElementById('s-ok').textContent=score.ok;document.getElementById('s-wrong').textContent=score.wrong;}
 }
 
 // ── MODE ─────────────────────────────────────────────────────────────────────
@@ -1206,15 +1358,8 @@ let appMode = 'gto'; // 'gto' or 'exploit'
 
 function setMode(m) {
   appMode = m;
-  const isDark = document.body.classList.contains('dark');
-  const active = isDark ? '#e0e0e0' : '#1a1a1a';
-  const activeText = isDark ? '#141414' : '#fff';
-  const inactive = isDark ? '#1e1e1e' : '#fff';
-  const inactiveText = isDark ? '#888' : '#666';
-  document.getElementById('btn-gto').style.background = m==='gto' ? active : inactive;
-  document.getElementById('btn-gto').style.color = m==='gto' ? activeText : inactiveText;
-  document.getElementById('btn-exploit').style.background = m==='exploit' ? active : inactive;
-  document.getElementById('btn-exploit').style.color = m==='exploit' ? activeText : inactiveText;
+  document.getElementById('btn-gto').classList.toggle('active', m==='gto');
+  document.getElementById('btn-exploit').classList.toggle('active', m==='exploit');
   score = {correct:0, ok:0, wrong:0};
   document.getElementById('scoreboard').innerHTML = '';
   if(m==='exploit') newExploitHand();
@@ -1268,7 +1413,7 @@ const PERSONAS = [
   {
     id:'maniac',
     name:'💣 Bernhard',
-    desc:'Bettar og raiser konstant. Bluffer mye. Spiller nesten alle hender.',
+    desc:'Better og raiser konstant. Bluffer mye. Spiller nesten alle hender.',
     color:'#a93226',
     traits: { foldToPressure: false, bluffFreq: 0.7, valueRange: 'very wide', callFreq: 'medium', aggr: 'very high' },
     tips: {
@@ -1443,7 +1588,7 @@ function renderExploit() {
   const {persona, hand, board, phase, scenario} = exploitState;
   const streets = ['preflop','flop','turn','river'];
   const si = streets.indexOf(phase);
-  const progress = streets.map((s,i)=>`<span class="street-dot ${i<si?'done':i===si?'current':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
+  const progress = streets.map((s,i)=>`<span class="s-dot ${i<si?'done':i===si?'cur':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
 
   let actions;
   if(phase==='preflop') actions = scenario.preflopActions;
@@ -1453,46 +1598,31 @@ function renderExploit() {
 
   const pot = phase==='preflop' ? scenario.flopPotBB : calcPot(scenario.flopPotBB, exploitState.prevActions.slice(1));
 
-  let html = `<div class="street-progress">${progress}</div>`;
-  html += tableHTML(scenario);
+  let html = `<div class="streets">${progress}</div>`;
+  html += `<div class="s-badge"><span class="badge-main">${scenario.tag}</span><span class="badge-sub">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
+  html += tableHTML(scenario, board, hand, phase);
 
-  // Persona card
-  html += `<div style="background:${persona.color}18;border:1px solid ${persona.color}44;border-radius:8px;padding:10px 14px;margin-bottom:10px;">
-    <div style="font-size:14px;font-weight:600;color:${persona.color}">${persona.name}</div>
-    <div style="font-size:12px;color:#888;margin-top:2px">${persona.desc}</div>
+  html += `<div class="action-panel">`;
+  html += `<div class="persona-banner" style="background:${persona.color}12;border-color:${persona.color}30;margin-bottom:8px;">
+    <div style="font-size:13px;font-weight:600;color:${persona.color}">${persona.name}</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:2px">${persona.desc}</div>
   </div>`;
 
-  // Hand + board
-  html += `<div class="section-label">Din hånd</div><div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}`;
-  if(board.length > 0) html += `<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`;
-  html += `</div>`;
-
-  if(board.length > 0) html += `<p class="desc">Pot: ~${pot}bb. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}.</p>`;
-  else html += `<p class="desc">${scenario.preflopDesc}</p>`;
-
-  html += `<hr class="divider"/>`;
+  if(phase==='preflop') html+=`<p class="situation">${scenario.preflopDesc}</p>`;
+  else html+=`<p class="situation">Pot: ~${pot}bb. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}.</p>`;
 
   const vBet = exploitState.villainBet;
   const heroIsOOP = scenario.flopPos === 'OOP';
   if(phase !== 'preflop' && vBet) {
-    const sizing = vBet;
-    html += `<div style="background:${persona.color}18;border:1px solid ${persona.color}44;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;">
-      💬 <strong>${persona.name}</strong> better <strong>${sizing}</strong> av pot
-    </div>`;
-    html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
-    const facingActions=['Fold','Call','Raise 2.5x'];
-    html += `<div id="actions">${facingActions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswerFacing('${a}')">${a}</button>`).join('')}</div>`;
+    html += `<div class="villain-act villain-bet">💬 <strong>${persona.name}</strong> better <strong>${vBet}</strong> av pot</div>`;
+    html += `<div class="act-row" id="actions">${['Fold','Call','Raise 2.5x'].map(a=>`<button class="act-btn ${btnClass(a)}" onclick="exploitAnswerFacing('${a}')">${a}</button>`).join('')}</div>`;
   } else {
     if(phase !== 'preflop' && heroIsOOP) {
-      html += `<div style="background:#2a2a2a11;border:1px solid #ccc;border-radius:8px;padding:7px 12px;margin-bottom:8px;font-size:12px;color:#888;">
-        💬 <strong>${persona.name}</strong> checker til deg
-      </div>`;
+      html += `<div class="villain-act villain-chk">💬 <strong>${persona.name}</strong> checker til deg</div>`;
     }
-    html += `<div class="section-label">Hva gjør du mot ${persona.name}?</div>`;
-    html += `<div id="actions">${actions.map(a=>`<button class="action-btn ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
+    html += `<div class="act-row" id="actions">${actions.map(a=>`<button class="act-btn ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
   }
-  html += `<div id="result"></div>`;
-
+  html += `<div id="result"></div></div>`;
   document.getElementById('app').innerHTML = html;
 }
 
@@ -1505,7 +1635,7 @@ function exploitAnswerFacing(act) {
   else if(res.q==='ok') score.ok++;
   else score.wrong++;
 
-  const cls=res.q==='good'?'result-good':res.q==='ok'?'result-ok':'result-bad';
+  const cls=res.q==='good'?'res good':res.q==='ok'?'res ok':'res bad';
   document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
 
   const streets=['preflop','flop','turn','river'];
@@ -1516,10 +1646,10 @@ function exploitAnswerFacing(act) {
 
   let btns='';
   if(!isLast) btns+=`<button class="next-btn" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
-  btns+=`<button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
-  if(isLast) btns=`<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  btns+=`<button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  if(isLast) btns=`<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
 
-  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div>${btns}`;
+  document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div><div class="btn-row">${btns}</div>`;
   updateScore();
 }
 
@@ -1538,7 +1668,7 @@ function exploitAnswer(act) {
   else if(q==='ok') score.ok++;
   else score.wrong++;
 
-  const cls = q==='good'?'result-good':q==='ok'?'result-ok':'result-bad';
+  const cls = q==='good'?'res good':q==='ok'?'res ok':'res bad';
   const label = q==='good'?'✓':q==='ok'?'~':'✗';
   document.getElementById('actions').querySelectorAll('button').forEach(b=>b.disabled=true);
 
@@ -1551,8 +1681,8 @@ function exploitAnswer(act) {
 
   let btns = '';
   if(!isLast) btns += `<button class="next-btn" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
-  btns += `<button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
-  if(isLast) btns = `<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="new-hand-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  btns += `<button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  if(isLast) btns = `<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
 
   document.getElementById('result').innerHTML = `<div class="${cls}">${label} ${tip}</div>${btns}`;
   updateScore();
@@ -1565,7 +1695,7 @@ function showExploitSummary() {
   const cls = {good:'tag-good',ok:'tag-ok',bad:'tag-bad'};
   let rows = '';
   handScore.forEach((q,i)=>{
-    rows+=`<div class="summary-row"><span>${streets[i]}</span><span class="${cls[q]}">${labels[q]}</span></div>`;
+    rows+=`<div class="sum-row"><span>${streets[i]}</span><span class="${cls[q]}">${labels[q]}</span></div>`;
   });
   const good = handScore.filter(q=>q==='good').length;
   document.getElementById('app').innerHTML = `
@@ -1586,25 +1716,25 @@ function showExploitSummary() {
 function toggleAbout() {
   const m = document.getElementById('about-modal');
   m.style.display = m.style.display === 'none' ? 'flex' : 'none';
-  const box = document.getElementById('about-box');
-  if(document.body.classList.contains('dark')) {
-    box.style.background = '#1e1e1e';
-    box.style.color = '#e0e0e0';
-  } else {
-    box.style.background = '#fff';
-    box.style.color = '#1a1a1a';
-  }
+}
+
+function toggleSidebarRange() {
+  const el = document.getElementById('sidebar-range-content');
+  const ch = document.getElementById('sb-range-chevron');
+  if(!el) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? 'block' : 'none';
+  if(ch) ch.textContent = open ? '▴' : '▾';
 }
 
 function toggleDark() {
   const dark = document.body.classList.toggle('dark');
-  document.getElementById('darkBtn').textContent = dark ? '☀️ Lys' : '🌙 Mørk';
+  document.getElementById('darkBtn').textContent = dark ? '◑' : '◐';
   localStorage.setItem('dark', dark ? '1' : '0');
-  setMode(appMode);
 }
 if(localStorage.getItem('dark')==='1') {
   document.body.classList.add('dark');
-  document.getElementById('darkBtn').textContent='☀️ Lys';
+  document.getElementById('darkBtn').textContent='◑';
 }
 
 setMode('gto');
