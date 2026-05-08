@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="no">
 <head>
 <meta charset="UTF-8"/>
@@ -896,13 +895,14 @@ const PERSONA_SIZING = {
   station: '33%',
 };
 
-function villainBets(street, pos, persona) {
-  // Returns true if villain bets, false if checks
+function villainBets(street, heroPos, persona) {
+  // Villain's position is opposite of hero's
+  const villainPos = heroPos === 'IP' ? 'OOP' : 'IP';
   if(persona) {
     const freq = PERSONA_CBET[persona.id][street] || 0.3;
     return Math.random() < freq;
   }
-  const freq = GTO_CBET[street]?.[pos] || 0.4;
+  const freq = GTO_CBET[street]?.[villainPos] || 0.4;
   return Math.random() < freq;
 }
 
@@ -1570,6 +1570,5 @@ if(localStorage.getItem('dark')==='1') {
 
 setMode('gto');
 </script>
-
 </body>
 </html>
