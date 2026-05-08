@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="no">
 <head>
 <meta charset="UTF-8"/>
@@ -101,21 +100,23 @@
 </style>
 </head>
 <body>
-<h1>Poker Trainer <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Mørk</button></h1>
+<h1>Poker Trainer <button class="dark-toggle" onclick="toggleDark()" id="darkBtn">🌙 Mørk</button><button onclick="toggleAbout()" style="background:none;border:1px solid #ccc;border-radius:50%;width:22px;height:22px;font-size:11px;font-weight:600;cursor:pointer;color:#888;float:right;margin-top:2px;margin-right:6px;line-height:1;padding:0;">i</button></h1>
+
+<div id="about-modal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;padding:1rem;">
+  <div id="about-box" style="background:#fff;border-radius:12px;padding:20px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;position:relative;">
+    <button onclick="toggleAbout()" style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:18px;cursor:pointer;color:#888;line-height:1;">✕</button>
+    <h2 style="font-size:15px;font-weight:600;margin:0 0 10px">Om GTO Poker Trainer</h2>
+    <p style="font-size:13px;color:#555;line-height:1.6;margin:0 0 8px">Et interaktivt læringsverktøy for å øve på preflop- og postflop-beslutninger i 9-max No-Limit Hold'em.</p>
+    <p style="font-size:13px;color:#555;line-height:1.6;margin:0 0 8px"><strong>GTO-modus</strong> trener deg på å spille unexploitable – åpne-ranger, 3-bet-spots og postflop-beslutninger basert på posisjon og håndstyrke. <strong>Exploit-modus</strong> introduserer fire arketypiske motstandertyper og utfordrer deg til å justere strategien din deretter.</p>
+    <p style="font-size:13px;color:#888;line-height:1.6;margin:0 0 8px">⚠️ Appen er ikke perfekt. Rangene er forenklede og feedback er regelbasert – ikke hentet fra en GTO-solver. Noen situasjoner kan gi unøyaktig tilbakemelding. Bruk den som et supplement til egen studie, ikke som fasit.</p>
+    <p style="font-size:13px;color:#555;line-height:1.6;margin:0">Bygget som et personlig prosjekt i samarbeid med Claude (Anthropic) – like mye et læringsverktøy i koding som i poker. Kode på <a href="https://github.com/krabba-lab/Poker-trainer" target="_blank" style="color:#378add">GitHub</a>.</p>
+  </div>
+</div>
+
 <div id="mode-toggle" style="display:flex;gap:0;margin-bottom:10px;border-radius:8px;overflow:hidden;border:1px solid #ccc;width:fit-content">
   <button id="btn-gto" onclick="setMode('gto')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#1a1a1a;color:#fff">GTO</button>
   <button id="btn-exploit" onclick="setMode('exploit')" style="padding:7px 18px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:#fff;color:#666">Exploit</button>
 </div>
-
-<details style="margin-bottom:10px;">
-  <summary style="font-size:12px;color:#888;cursor:pointer;user-select:none;">ℹ️ Om denne appen</summary>
-  <div style="font-size:12px;color:#666;line-height:1.6;margin-top:8px;padding:10px 12px;background:#f0f0ec;border-radius:8px;">
-    <p style="margin:0 0 6px"><strong>GTO Poker Trainer</strong> er et interaktivt læringsverktøy for å øve på preflop- og postflop-beslutninger i 9-max No-Limit Hold'em.</p>
-    <p style="margin:0 0 6px"><strong>GTO-modus</strong> trener deg på å spille unexploitable – åpne-ranger, 3-bet-spots og postflop c-bet-beslutninger basert på posisjon og håndstyrke. <strong>Exploit-modus</strong> introduserer fire arketypiske motstandertyper – Nit, Fish, Bernhard og Calling Station – og utfordrer deg til å justere strategien din deretter.</p>
-    <p style="margin:0 0 6px">⚠️ <em>Appen er ikke perfekt.</em> Rangene er forenklede og feedback-logikken er regelbasert, ikke hentet fra en GTO-solver. Noen situasjoner kan gi unøyaktig eller mangelfull tilbakemelding. Bruk den som et supplement til egen studie – ikke som fasit.</p>
-    <p style="margin:0">Appen er bygget fra bunnen av som et personlig prosjekt i samarbeid med Claude (Anthropic) – like mye et læringsverktøy i koding som i poker. Kildekoden ligger åpent på <a href="https://github.com/krabba-lab/Poker-trainer" target="_blank" style="color:#378add">GitHub</a>.</p>
-  </div>
-</details>
 <div id="scoreboard"></div>
 <div id="app"></div>
 
@@ -991,10 +992,12 @@ function evalFacingBet(hand, board, action, pos, street, pot, persona) {
     return {q:'bad', msg:`✗ Call uten equity er feil. Fold ${hl}.`};
   }
   if(act.includes('raise')) {
-    if(s.strength==='monster'||s.strength==='strong') return {q:'good', msg:`✓ Raise for value med sterk hånd – bygg pot!`};
+    if(s.strength==='monster'||s.strength==='strong') return {q:'good', msg:`✓ Raise for value med sterk hånd (${hl})! Bygg pot.`};
+    if(s.strength==='medium') return {q:'good', msg:`✓ Raise er bra med medium hånd (${hl}) – du har god equity og kan bygge pot.`};
     if(hasDraw && ip) return {q:'good', msg:`✓ Semi-bluff raise med draw IP er GTO.`};
-    if(hasDraw) return {q:'ok', msg:`~ Semi-bluff raise OOP er mulig men risikabelt.`};
-    return {q:'ok', msg:`~ Bluff raise uten equity er marginal.`};
+    if(hasDraw) return {q:'ok', msg:`~ Semi-bluff raise OOP er mulig men risikabelt med draw.`};
+    if(s.made===1&&!s.topPair&&!s.overpair) return {q:'ok', msg:`~ Raise med svak par er marginal – vurder call i stedet.`};
+    return {q:'bad', msg:`✗ Raise uten equity eller sterk hånd er for løst. Call eller fold.`};
   }
   return {q:'ok', msg:'Akseptabelt valg.'};
 }
@@ -1580,6 +1583,19 @@ function showExploitSummary() {
   updateScore();
 }
 
+function toggleAbout() {
+  const m = document.getElementById('about-modal');
+  m.style.display = m.style.display === 'none' ? 'flex' : 'none';
+  const box = document.getElementById('about-box');
+  if(document.body.classList.contains('dark')) {
+    box.style.background = '#1e1e1e';
+    box.style.color = '#e0e0e0';
+  } else {
+    box.style.background = '#fff';
+    box.style.color = '#1a1a1a';
+  }
+}
+
 function toggleDark() {
   const dark = document.body.classList.toggle('dark');
   document.getElementById('darkBtn').textContent = dark ? '☀️ Lys' : '🌙 Mørk';
@@ -1593,6 +1609,5 @@ if(localStorage.getItem('dark')==='1') {
 
 setMode('gto');
 </script>
-
 </body>
 </html>
