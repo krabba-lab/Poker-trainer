@@ -2,233 +2,399 @@
 <html lang="no">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>GTOsim</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GTO Poker Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
+
+/* ── TOKENS ── */
 :root{
-  --bg:#eef0f4;--surface:#fff;--surface2:#f2f4f7;--border:#dde0e8;
-  --text:#0e1018;--text2:#505868;--text3:#8890a0;
-  --accent:#3461e8;--accent2:#2450d0;
-  --fold:#d42828;--call:#148858;--raise:#3461e8;--check:#a86808;
-  --good-bg:#e4f2dc;--good-fg:#204e14;
-  --ok-bg:#fceeda;--ok-fg:#5e3606;
-  --bad-bg:#f8dede;--bad-fg:#6e1414;
-  --suit-H:#cc1c1c;--suit-D:#1c48b8;--suit-C:#137048;--suit-S:#101418;
+  --c-bg:         #f5f6f8;
+  --c-surface:    #ffffff;
+  --c-surface-2:  #f0f1f4;
+  --c-border:     #e4e6ec;
+  --c-border-2:   #d0d3dc;
+  --c-text:       #0d1117;
+  --c-text-2:     #4a5265;
+  --c-text-3:     #8b92a5;
+  --c-accent:     #3d6ef5;
+  --c-accent-2:   #2c5de0;
+  --c-accent-bg:  rgba(61,110,245,0.07);
+  --c-fold:       #d63636;
+  --c-call:       #1a9464;
+  --c-raise:      #3d6ef5;
+  --c-check:      #c47c10;
+  --c-good:       #1a6e2e; --c-good-bg: #e8f5ec;
+  --c-ok:         #7a4a0a; --c-ok-bg:   #fdf3e0;
+  --c-bad:        #8c1c1c; --c-bad-bg:  #fae8e8;
+  --c-suit-h:     #d42020;
+  --c-suit-d:     #1e50cc;
+  --c-suit-c:     #167a44;
+  --c-suit-s:     #1a1e2a;
+  --felt-a:       #213a72;
+  --felt-b:       #182d58;
+  --rail:         #10192e;
+  --rail-border:  #233566;
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+  --t: 0.15s ease;
 }
 body.dark{
-  --bg:#0c0e12;--surface:#131720;--surface2:#181d28;--border:#232840;
-  --text:#cdd0dc;--text2:#626880;--text3:#363c50;
-  --accent:#4470f0;--accent2:#3460e0;--suit-S:#5868a0;
+  --c-bg:         #0a0c11;
+  --c-surface:    #111520;
+  --c-surface-2:  #161b28;
+  --c-border:     #1e2438;
+  --c-border-2:   #2a3050;
+  --c-text:       #c8cdd8;
+  --c-text-2:     #606880;
+  --c-text-3:     #3a4058;
+  --c-accent:     #4a78f8;
+  --c-accent-2:   #3a68e8;
+  --c-accent-bg:  rgba(74,120,248,0.1);
+  --c-suit-s:     #606a8a;
+  --c-good:       #4ab530; --c-good-bg: #0c1a09;
+  --c-ok:         #c08030;   --c-ok-bg:   #160e04;
+  --c-bad:        #d84848;   --c-bad-bg:  #160606;
+  --felt-a:       #1a2d52;
+  --felt-b:       #111e3a;
+  --rail:         #080c18;
+  --rail-border:  #1a2550;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.4);
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
-/* TOPBAR */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:44px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
-.topbar-left{display:flex;align-items:center;gap:12px;}
-.logo{font-size:14px;font-weight:600;letter-spacing:-0.2px;}
-.logo em{font-style:normal;color:var(--accent);}
-.seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px;gap:1px;}
-.seg-btn{padding:4px 14px;font-size:11px;font-weight:500;border:none;cursor:pointer;background:transparent;color:var(--text3);font-family:inherit;border-radius:4px;transition:all 0.15s;}
-.seg-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.08);}
-.topbar-right{display:flex;gap:6px;}
-.top-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--text2);font-family:inherit;}
-.top-btn:hover{background:var(--surface2);}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--c-bg);color:var(--c-text);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5;}
 
-/* LAYOUT */
-.layout{display:flex;max-width:1100px;margin:0 auto;min-height:calc(100vh - 44px);}
-.sidebar{width:210px;flex-shrink:0;border-right:1px solid var(--border);padding:16px;display:none;}
-@media(min-width:768px){.sidebar{display:block;}}
-.main{flex:1;padding:12px 14px;overflow-y:auto;}
+/* ── TOPBAR ── */
+.nav{
+  position:sticky;top:0;z-index:100;
+  height:48px;padding:0 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(var(--c-surface),0.9);
+  background:var(--c-surface);
+  border-bottom:1px solid var(--c-border);
+  box-shadow:var(--shadow-sm);
+}
+.nav-left{display:flex;align-items:center;gap:14px;}
+.nav-logo{display:flex;align-items:center;gap:8px;}
+.nav-logo-mark{
+  width:28px;height:28px;border-radius:var(--r-sm);
+  background:var(--c-accent);display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;letter-spacing:-0.3px;
+}
+.nav-logo-text{font-size:13px;font-weight:600;letter-spacing:-0.2px;color:var(--c-text);}
+.nav-logo-text span{color:var(--c-text-3);font-weight:400;}
 
-/* SIDEBAR */
-.sb-section{margin-bottom:20px;}
-.sb-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:8px;}
-.sb-pills{display:flex;gap:5px;}
-.sb-pill{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 4px;text-align:center;}
-.sb-pill .n{font-size:15px;font-weight:600;}
-.sb-pill .l{font-size:8px;color:var(--text3);margin-top:1px;}
-.sb-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;}
-.sb-key{color:var(--text3);}.sb-val{font-weight:500;}
+/* Mode switcher */
+.mode-switcher{display:flex;background:var(--c-surface-2);border:1px solid var(--c-border);border-radius:var(--r-sm);padding:3px;gap:2px;}
+.mode-btn{padding:5px 14px;font-size:11px;font-weight:500;border:none;cursor:pointer;background:transparent;color:var(--c-text-3);font-family:inherit;border-radius:var(--r-xs);transition:all var(--t);letter-spacing:0.02em;}
+.mode-btn.active{background:var(--c-surface);color:var(--c-text);box-shadow:var(--shadow-sm);}
+.mode-btn:hover:not(.active){color:var(--c-text-2);}
 
-/* MOBILE SCORE */
-.m-score{display:flex;gap:5px;margin-bottom:10px;}
-@media(min-width:768px){.m-score{display:none;}}
-.m-pill{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 4px;text-align:center;}
-.m-pill .n{font-size:13px;font-weight:600;}
-.m-pill .l{font-size:8px;color:var(--text3);}
+.nav-right{display:flex;align-items:center;gap:6px;}
+.nav-btn{background:none;border:1px solid var(--c-border);border-radius:var(--r-sm);padding:5px 10px;font-size:12px;cursor:pointer;color:var(--c-text-2);font-family:inherit;transition:all var(--t);}
+.nav-btn:hover{background:var(--c-surface-2);border-color:var(--c-border-2);}
 
-/* STREETS */
-.streets{display:flex;gap:4px;margin-bottom:10px;}
-.s-dot{font-size:10px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--surface2);color:var(--text3);border:1px solid var(--border);}
-.s-dot.done{background:#d8eecb;color:#204e14;border-color:#b0d498;}
-.s-dot.cur{background:var(--accent);color:#fff;border-color:var(--accent);}
-body.dark .s-dot.done{background:#0e1c08;color:#5ab025;border-color:#1a3010;}
+/* ── APP SHELL ── */
+.app{display:flex;height:calc(100vh - 48px);overflow:hidden;}
 
-/* BADGE */
-.s-badge{display:flex;gap:5px;align-items:center;margin-bottom:10px;}
-.badge-main{font-size:11px;font-weight:600;padding:3px 10px;border-radius:4px;background:var(--accent);color:#fff;}
-.badge-sub{font-size:11px;padding:3px 10px;border-radius:4px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+/* ── SIDEBAR ── */
+.sidebar{
+  width:224px;flex-shrink:0;
+  border-right:1px solid var(--c-border);
+  padding:20px 16px;
+  overflow-y:auto;
+  display:none;
+  background:var(--c-surface);
+}
+@media(min-width:768px){.sidebar{display:flex;flex-direction:column;gap:20px;}}
 
-/* POKER TABLE — SVG-based for correct oval */
-.table-wrap{position:relative;width:100%;margin:4px 0 8px;user-select:none;}
-.table-svg{width:100%;display:block;}
-.table-seats{position:absolute;inset:0;}
+.sb-block{}
+.sb-micro{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--c-text-3);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.sb-micro .chevron{font-size:9px;color:var(--c-text-3);transition:transform var(--t);}
+.sb-micro .chevron.open{transform:rotate(180deg);}
+.sb-scores{display:flex;gap:6px;}
+.sb-score{flex:1;text-align:center;padding:8px 4px;background:var(--c-surface-2);border:1px solid var(--c-border);border-radius:var(--r-sm);}
+.sb-score .n{font-size:18px;font-weight:600;line-height:1;}
+.sb-score .l{font-size:8px;color:var(--c-text-3);margin-top:3px;letter-spacing:0.05em;}
+.sb-rows{display:flex;flex-direction:column;gap:0;}
+.sb-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--c-border);}
+.sb-row:last-child{border-bottom:none;}
+.sb-row .k{font-size:11px;color:var(--c-text-3);}
+.sb-row .v{font-size:11px;font-weight:500;}
+.sb-range-body{display:none;}
+.sb-range-body.open{display:block;margin-top:8px;}
 
-/* All seats positioned over SVG */
-.seat-node{
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;padding:16px 20px 32px;}
+
+/* Mobile score */
+.m-scores{display:flex;gap:6px;margin-bottom:14px;}
+@media(min-width:768px){.m-scores{display:none;}}
+.m-score-pill{flex:1;text-align:center;padding:6px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-sm);}
+.m-score-pill .n{font-size:14px;font-weight:600;}
+.m-score-pill .l{font-size:8px;color:var(--c-text-3);}
+
+/* Streets */
+.streets{display:flex;gap:4px;margin-bottom:12px;}
+.street-pip{font-size:10px;font-weight:500;padding:4px 10px;border-radius:20px;background:var(--c-surface-2);color:var(--c-text-3);border:1px solid var(--c-border);transition:all var(--t);}
+.street-pip.done{background:#d6f0c8;color:#1a5c14;border-color:#a8d890;}
+.street-pip.cur{background:var(--c-accent);color:#fff;border-color:var(--c-accent);}
+body.dark .street-pip.done{background:#0e1c08;color:#52b020;border-color:#1a3010;}
+
+/* Scenario badge */
+.scenario-row{display:flex;align-items:center;gap:6px;margin-bottom:14px;}
+.tag-main{font-size:11px;font-weight:600;padding:3px 10px;border-radius:var(--r-xs);background:var(--c-accent);color:#fff;letter-spacing:0.02em;}
+.tag-sub{font-size:11px;padding:3px 10px;border-radius:var(--r-xs);background:var(--c-surface-2);color:var(--c-text-2);border:1px solid var(--c-border);}
+
+/* ═══════════════════════════════════
+   POKER TABLE
+   ═══════════════════════════════════ */
+.table-scene{position:relative;width:100%;margin-bottom:16px;user-select:none;}
+.table-svg-el{width:100%;display:block;}
+.table-overlay{position:absolute;inset:0;pointer-events:none;}
+
+/* Seats */
+.seat{
   position:absolute;transform:translate(-50%,-50%);
-  background:rgba(20,28,52,0.85);
-  border:1px solid rgba(255,255,255,0.18);
-  border-radius:6px;padding:6px 10px;text-align:center;
-  min-width:52px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  background:rgba(16,22,46,0.7);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:var(--r-sm);
+  padding:6px 10px;
+  text-align:center;
+  min-width:52px;
+  pointer-events:none;
+  transition:opacity var(--t);
 }
-.seat-node.folded{opacity:0.28;}
-.seat-node.villain{background:rgba(18,36,110,0.9);border-color:rgba(80,130,255,0.7);}
-.seat-node.hero{background:var(--accent);border-color:var(--accent2);box-shadow:0 2px 14px rgba(52,97,232,0.45);}
-.seat-label{font-size:10px;font-weight:600;color:rgba(255,255,255,0.88);letter-spacing:0.04em;white-space:nowrap;}
-.seat-sub{font-size:8px;color:rgba(255,255,255,0.3);letter-spacing:0.05em;margin-top:2px;}
-.seat-sub.v{color:rgba(120,170,255,1);font-weight:600;}
-.seat-hero-cards{display:flex;gap:3px;margin-top:4px;justify-content:center;}
+.seat.folded{opacity:0.22;}
+.seat.villain{
+  background:rgba(20,40,110,0.85);
+  border-color:rgba(80,130,255,0.55);
+  box-shadow:0 0 16px rgba(60,100,255,0.18);
+}
+.seat.hero{
+  background:var(--c-accent);
+  border-color:rgba(255,255,255,0.25);
+  box-shadow:0 0 20px rgba(61,110,245,0.45);
+}
+.seat-name{font-size:10px;font-weight:600;color:rgba(255,255,255,0.88);letter-spacing:0.04em;white-space:nowrap;}
+.seat-info{font-size:8px;color:rgba(255,255,255,0.28);letter-spacing:0.05em;margin-top:2px;}
+.seat-info.v{color:rgba(110,165,255,0.95);font-weight:600;}
+.seat-cards{display:flex;gap:2px;justify-content:center;margin-top:4px;}
 
-.d-chip{position:absolute;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#f0e030;border:1.5px solid #a89010;font-size:7px;font-weight:700;color:#6a5800;display:flex;align-items:center;justify-content:center;}
+/* D chip */
+.d-btn{
+  position:absolute;transform:translate(-50%,-50%);
+  width:16px;height:16px;border-radius:50%;
+  background:#f0e030;border:1.5px solid #a89010;
+  font-size:7px;font-weight:700;color:#6a5800;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;
+}
 
-/* ACTION PANEL */
-.action-panel{margin-top:50px;}
-.hand-preview{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
-.hand-preview-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);}
-.situation{font-size:12px;color:var(--text2);margin-bottom:7px;line-height:1.45;}
-.villain-act{display:flex;align-items:center;gap:8px;font-size:12px;padding:8px 12px;margin-bottom:8px;border-radius:6px;border:1px solid;}
-.villain-bet{background:rgba(52,97,232,0.06);border-color:rgba(52,97,232,0.2);}
-.villain-chk{background:var(--surface2);border-color:var(--border);color:var(--text3);}
-body.dark .villain-bet{background:rgba(68,112,240,0.1);border-color:rgba(68,112,240,0.25);}
-.act-row{display:flex;gap:7px;flex-wrap:wrap;}
-.act-btn{padding:10px 18px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all 0.12s;font-family:inherit;border-radius:6px;}
-.act-btn:hover{border-color:var(--text2);background:var(--surface2);}
-.act-btn:disabled{opacity:0.35;cursor:default;}
-.act-btn.fold{border-color:var(--fold);color:var(--fold);}
-.act-btn.call{border-color:var(--call);color:var(--call);}
-.act-btn.raise{border-color:var(--raise);color:var(--raise);}
-.act-btn.check{border-color:var(--check);color:var(--check);}
-.act-btn.fold:hover{background:rgba(212,40,40,0.04);}
-.act-btn.call:hover{background:rgba(20,136,88,0.04);}
-.act-btn.raise:hover{background:rgba(52,97,232,0.04);}
-.act-btn.check:hover{background:rgba(168,104,8,0.04);}
+/* ── CARDS ── */
+.card{
+  display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+  width:42px;height:57px;
+  border:1px solid var(--c-border);
+  background:#fff;
+  border-radius:var(--r-sm);
+  box-shadow:var(--shadow-sm);
+  font-weight:600;line-height:1.1;
+  transition:transform var(--t);
+}
+.card.sm{width:30px;height:41px;border-radius:4px;}
+.card.sm .rank{font-size:13px;}
+.card.sm .suit-sym{font-size:9px;}
+.card .rank{font-size:17px;}
+.card .suit-sym{font-size:11px;}
+.card.back{background:repeating-linear-gradient(135deg,#bccae0,#bccae0 3px,#a6b8d4 3px,#a6b8d4 6px);}
+.suit-H{color:var(--c-suit-h);}.suit-D{color:var(--c-suit-d);}
+.suit-C{color:var(--c-suit-c);}.suit-S{color:var(--c-suit-s);}
+@keyframes dealCard{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.deal-anim{opacity:0;animation:dealCard 0.22s ease forwards;}
 
-/* RESULT */
-.res{padding:10px 14px;margin-top:8px;font-size:12px;line-height:1.55;border-radius:6px;border:1px solid;}
-.res.good{background:var(--good-bg);color:var(--good-fg);border-color:rgba(32,78,20,0.2);}
-.res.ok  {background:var(--ok-bg);  color:var(--ok-fg);  border-color:rgba(94,54,6,0.2);}
-.res.bad {background:var(--bad-bg); color:var(--bad-fg); border-color:rgba(110,20,20,0.2);}
-body.dark .res.good{background:#0c1a08;color:#5ab025;}
-body.dark .res.ok  {background:#181008;color:#c07025;}
-body.dark .res.bad {background:#180808;color:#d04848;}
+/* ── ACTION AREA ── */
+.action-area{display:flex;flex-direction:column;gap:10px;}
 
-/* BUTTONS */
-.btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
-.next-btn{padding:9px 18px;font-size:12px;font-weight:500;cursor:pointer;background:var(--accent);color:#fff;border:none;font-family:inherit;border-radius:6px;transition:background 0.12s;}
-.next-btn:hover{background:var(--accent2);}
-.sec-btn{padding:9px 14px;font-size:12px;font-weight:400;cursor:pointer;background:var(--surface);color:var(--text);border:1px solid var(--border);font-family:inherit;border-radius:6px;}
-.sec-btn:hover{background:var(--surface2);}
+/* Hand display */
+.hand-display{display:flex;align-items:center;gap:6px;}
+.hand-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--c-text-3);margin-right:4px;}
+.hand-sep{width:1px;height:32px;background:var(--c-border);margin:0 4px;}
 
-/* CARDS */
-.card{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:40px;height:54px;border:1px solid var(--border);background:#fff;font-weight:600;line-height:1.1;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
-.card.sm{width:32px;height:44px;}
-.card.sm .rank{font-size:14px;}.card.sm .suit-sym{font-size:10px;}
-.card .rank{font-size:16px;}.card .suit-sym{font-size:11px;}
-.card.back{background:repeating-linear-gradient(45deg,#c4d0e8,#c4d0e8 3px,#adbcd4 3px,#adbcd4 6px);}
-.suit-H{color:var(--suit-H);}.suit-D{color:var(--suit-D);}.suit-C{color:var(--suit-C);}.suit-S{color:var(--suit-S);}
-@keyframes cardDeal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
-.board-card-wrap{opacity:0;animation:cardDeal 0.2s ease forwards;}
+/* Villain action */
+.villain-msg{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 14px;border-radius:var(--r-md);
+  border:1px solid;font-size:12px;
+}
+.villain-msg.bet{background:var(--c-accent-bg);border-color:rgba(61,110,245,0.2);color:var(--c-text);}
+.villain-msg.check{background:var(--c-surface-2);border-color:var(--c-border);color:var(--c-text-3);}
+body.dark .villain-msg.bet{background:rgba(74,120,248,0.08);border-color:rgba(74,120,248,0.2);}
 
-/* SUMMARY */
-.sum-row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);}
-.sum-row:last-child{border-bottom:none;}
-.tg{color:var(--good-fg);font-weight:600;}.tok{color:var(--ok-fg);font-weight:600;}.tb{color:var(--bad-fg);font-weight:600;}
+/* Situation text */
+.situation-text{font-size:12px;color:var(--c-text-2);line-height:1.5;}
 
-/* RANGE ACCORDION */
-.range-accordion{border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px;}
-.range-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;background:var(--surface2);font-size:11px;font-weight:500;color:var(--text2);border:none;width:100%;font-family:inherit;text-align:left;}
-.range-toggle:hover{background:var(--border);}
-.range-chevron{font-size:10px;color:var(--text3);transition:transform 0.2s;}
+/* Action buttons */
+.action-row{display:flex;gap:8px;flex-wrap:wrap;}
+.act{
+  padding:11px 20px;font-size:12px;font-weight:500;
+  border-radius:var(--r-sm);border:1px solid var(--c-border);
+  background:var(--c-surface);color:var(--c-text);
+  cursor:pointer;font-family:inherit;
+  transition:all var(--t);
+  position:relative;overflow:hidden;
+}
+.act::after{content:'';position:absolute;inset:0;background:currentColor;opacity:0;transition:opacity var(--t);}
+.act:hover::after{opacity:0.04;}
+.act:hover{border-color:var(--c-border-2);transform:translateY(-1px);box-shadow:var(--shadow-sm);}
+.act:active{transform:translateY(0);}
+.act:disabled{opacity:0.32;cursor:default;transform:none;box-shadow:none;}
+.act.fold {border-color:var(--c-fold); color:var(--c-fold);}
+.act.call {border-color:var(--c-call); color:var(--c-call);}
+.act.raise{border-color:var(--c-raise);color:var(--c-raise);}
+.act.check{border-color:var(--c-check);color:var(--c-check);}
+
+/* ── FEEDBACK ── */
+.feedback{
+  padding:11px 14px;border-radius:var(--r-md);
+  font-size:12px;line-height:1.6;
+  border:1px solid;
+  animation:fadeIn 0.2s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(2px);}to{opacity:1;transform:translateY(0);}}
+.feedback.good{background:var(--c-good-bg);color:var(--c-good);border-color:rgba(26,110,46,0.18);}
+.feedback.ok  {background:var(--c-ok-bg);  color:var(--c-ok);  border-color:rgba(122,74,10,0.18);}
+.feedback.bad {background:var(--c-bad-bg); color:var(--c-bad); border-color:rgba(140,28,28,0.18);}
+
+/* ── NEXT BUTTONS ── */
+.btn-row{display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;}
+.btn-primary{padding:10px 20px;font-size:12px;font-weight:500;cursor:pointer;background:var(--c-accent);color:#fff;border:none;font-family:inherit;border-radius:var(--r-sm);transition:background var(--t);}
+.btn-primary:hover{background:var(--c-accent-2);}
+.btn-secondary{padding:10px 16px;font-size:12px;font-weight:400;cursor:pointer;background:var(--c-surface);color:var(--c-text);border:1px solid var(--c-border);font-family:inherit;border-radius:var(--r-sm);}
+.btn-secondary:hover{background:var(--c-surface-2);border-color:var(--c-border-2);}
+
+/* ── RANGE ACCORDION (mobile) ── */
+.range-accordion{border:1px solid var(--c-border);border-radius:var(--r-md);overflow:hidden;margin-top:6px;}
+.range-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 12px;cursor:pointer;
+  background:var(--c-surface-2);
+  font-size:11px;font-weight:500;color:var(--c-text-2);
+  border:none;width:100%;font-family:inherit;text-align:left;
+  transition:background var(--t);
+}
+.range-header:hover{background:var(--c-border);}
+.range-chevron{font-size:10px;color:var(--c-text-3);transition:transform 0.2s;}
 .range-chevron.open{transform:rotate(180deg);}
-.range-body{display:none;padding:8px 10px;background:var(--surface);}
+.range-body{display:none;padding:10px;background:var(--c-surface);}
 .range-body.open{display:block;}
-.range-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;color:var(--text3);}
 .mobile-range{display:block;}
 @media(min-width:768px){.mobile-range{display:none;}}
 
-/* legacy compat */
-.range-btn{display:none;}
-.range-box{background:var(--surface);}
+/* ── SUMMARY ── */
+.sum-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--c-border);font-size:12px;}
+.sum-row:last-child{border-bottom:none;}
+.tg{color:var(--c-good);font-weight:600;}.tok{color:var(--c-ok);font-weight:600;}.tb{color:var(--c-bad);font-weight:600;}
 
-/* PERSONA */
-.persona-banner{border-radius:6px;padding:8px 12px;margin-bottom:8px;border:1px solid;}
+/* ── PERSONA BANNER ── */
+.persona-card{border-radius:var(--r-md);padding:10px 14px;margin-bottom:10px;border:1px solid;}
 
-/* MODAL */
-.modal-overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.45);justify-content:center;align-items:center;padding:1rem;}
-.modal-box{background:var(--surface);border-radius:10px;padding:20px;max-width:380px;width:100%;max-height:80vh;overflow-y:auto;position:relative;border:1px solid var(--border);}
-.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--text3);}
-.modal-title{font-size:14px;font-weight:600;margin-bottom:10px;}
-.modal-p{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:8px;}
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);justify-content:center;align-items:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--c-surface);border-radius:var(--r-lg);padding:24px;max-width:400px;width:100%;max-height:85vh;overflow-y:auto;position:relative;border:1px solid var(--c-border);box-shadow:var(--shadow-md);}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--c-text-3);line-height:1;padding:2px;}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:12px;letter-spacing:-0.2px;}
+.modal-p{font-size:12px;color:var(--c-text-2);line-height:1.65;margin-bottom:10px;}
+.modal-p:last-child{margin-bottom:0;}
+
+/* ── RANGE GRID text ── */
+.range-grid-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--c-text-3);margin-bottom:6px;}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-left">
-    <div class="logo">GTO <em>Poker Simulator</em></div>
-    <div class="seg">
-      <button class="seg-btn active" id="btn-gto" onclick="setMode('gto')">GTO</button>
-      <button class="seg-btn" id="btn-exploit" onclick="setMode('exploit')">Exploit</button>
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-left">
+    <div class="nav-logo">
+      <div class="nav-logo-mark">GS</div>
+      <div class="nav-logo-text">GTO Poker <span>Simulator</span></div>
+    </div>
+    <div class="mode-switcher">
+      <button class="mode-btn active" id="btn-gto" onclick="setMode('gto')">GTO</button>
+      <button class="mode-btn" id="btn-exploit" onclick="setMode('exploit')">Exploit</button>
     </div>
   </div>
-  <div class="topbar-right">
-    <button class="top-btn" onclick="toggleDark()" id="darkBtn">◐</button>
-    <button class="top-btn" onclick="toggleAbout()">i</button>
+  <div class="nav-right">
+    <button class="nav-btn" onclick="toggleDark()" id="darkBtn">◐</button>
+    <button class="nav-btn" onclick="toggleAbout()">?</button>
   </div>
-</div>
+</nav>
 
-<div class="modal-overlay" id="about-modal">
-  <div class="modal-box">
+<!-- MODAL -->
+<div class="modal-overlay" id="about-modal" onclick="if(event.target===this)toggleAbout()">
+  <div class="modal">
     <button class="modal-close" onclick="toggleAbout()">✕</button>
-    <div class="modal-title">Om GTOsim</div>
+    <div class="modal-title">GTO Poker Simulator</div>
     <p class="modal-p">Et interaktivt læringsverktøy for preflop- og postflop-beslutninger i 9-max No-Limit Hold'em.</p>
     <p class="modal-p"><strong>GTO-modus</strong> trener deg på unexploitable play – åpne-ranger, 3-bet-spots og postflop basert på posisjon og håndstyrke. <strong>Exploit-modus</strong> introduserer fire motstandertyper og utfordrer deg til å justere strategien.</p>
-    <p class="modal-p" style="color:var(--text3)">⚠️ Appen er ikke perfekt. Rangene er forenklede og feedback er regelbasert – ikke fra en GTO-solver. Bruk som supplement, ikke fasit.</p>
-    <p class="modal-p">Bygget i samarbeid med Claude (Anthropic) – et læringsverktøy i like stor grad for koding som poker. Kode på <a href="https://github.com/krabba-lab/Poker-trainer" target="_blank" style="color:var(--accent)">GitHub</a>.</p>
+    <p class="modal-p" style="color:var(--c-text-3)">⚠️ Appen er ikke perfekt. Rangene er forenklede og feedback er regelbasert – ikke fra en GTO-solver. Bruk som supplement til egen studie, ikke som fasit.</p>
+    <p class="modal-p">Bygget i samarbeid med Claude (Anthropic) – et læringsverktøy i like stor grad for koding som poker. <a href="https://github.com/krabba-lab/Poker-trainer" target="_blank" style="color:var(--c-accent)">GitHub</a>.</p>
   </div>
 </div>
 
-<div class="layout">
-  <div class="sidebar" id="sidebar">
-    <div class="sb-section">
-      <div class="sb-label">Score</div>
-      <div class="sb-pills">
-        <div class="sb-pill"><div class="n" style="color:var(--good-fg)" id="s-correct">0</div><div class="l">Riktig</div></div>
-        <div class="sb-pill"><div class="n" style="color:var(--ok-fg)" id="s-ok">0</div><div class="l">Marginal</div></div>
-        <div class="sb-pill"><div class="n" style="color:var(--bad-fg)" id="s-wrong">0</div><div class="l">Feil</div></div>
+<!-- APP -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- Score -->
+    <div class="sb-block">
+      <div class="sb-micro">Score</div>
+      <div class="sb-scores" id="sb-scores">
+        <div class="sb-score"><div class="n" style="color:var(--c-good)" id="s-correct">0</div><div class="l">RIKTIG</div></div>
+        <div class="sb-score"><div class="n" style="color:var(--c-ok)"   id="s-ok">0</div><div class="l">MARGINAL</div></div>
+        <div class="sb-score"><div class="n" style="color:var(--c-bad)"  id="s-wrong">0</div><div class="l">FEIL</div></div>
       </div>
     </div>
-    <div class="sb-section">
-      <div class="sb-label">Spot</div>
-      <div class="sb-row"><span class="sb-key">Posisjon</span><span class="sb-val" id="si-pos">–</span></div>
-      <div class="sb-row"><span class="sb-key">Street</span><span class="sb-val" id="si-street">–</span></div>
-      <div class="sb-row"><span class="sb-key">Pot</span><span class="sb-val" id="si-pot">–</span></div>
-      <div class="sb-row"><span class="sb-key">IP/OOP</span><span class="sb-val" id="si-oop">–</span></div>
-    </div>
-    <div class="sb-section">
-      <div class="sb-label" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="toggleSidebarRange()">
-        Range Advisor <span id="sb-range-chevron" style="font-size:10px;color:var(--text3);">▾</span>
+
+    <!-- Spot info -->
+    <div class="sb-block">
+      <div class="sb-micro">Spot info</div>
+      <div class="sb-rows">
+        <div class="sb-row"><span class="k">Posisjon</span><span class="v" id="si-pos">–</span></div>
+        <div class="sb-row"><span class="k">Street</span><span class="v" id="si-street">–</span></div>
+        <div class="sb-row"><span class="k">Pot</span><span class="v" id="si-pot">–</span></div>
+        <div class="sb-row"><span class="k">IP/OOP</span><span class="v" id="si-oop">–</span></div>
       </div>
-      <div id="sidebar-range-content" style="display:none;"><span style="font-size:10px;color:var(--text3)">Spill et preflop-spot</span></div>
     </div>
-  </div>
-  <div class="main">
-    <div class="m-score" id="scoreboard"></div>
+
+    <!-- Range advisor -->
+    <div class="sb-block">
+      <div class="sb-micro" onclick="toggleSidebarRange()" style="cursor:pointer;">
+        Range Advisor
+        <span class="chevron" id="sb-range-chevron">▾</span>
+      </div>
+      <div class="sb-range-body" id="sidebar-range-content">
+        <span style="font-size:10px;color:var(--c-text-3)">Spill et preflop-spot</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="m-scores" id="scoreboard"></div>
     <div id="app"></div>
-  </div>
+  </main>
+
 </div>
 
 <script>
@@ -257,10 +423,10 @@ function deal(n) {
 }
 
 function cardHTML(c, size='normal') {
-  if(!c) return `<div class="card back"></div>`;
+  if(!c) return `<div class="card${size==='sm'?' sm':''} back"></div>`;
   const r=c.slice(0,-1), s=c.slice(-1);
-  const fs = size==='small' ? 'font-size:13px;width:34px;height:46px' : '';
-  return `<div class="card ${SUIT_CLASS[s]}" style="${fs}"><span class="rank">${r}</span><span class="suit-sym">${SUITS[s]}</span></div>`;
+  const cls = size==='sm' ? 'card sm' : 'card';
+  return `<div class="${cls} suit-${s}"><span class="rank">${r}</span><span class="suit-sym">${SUITS[s]}</span></div>`;
 }
 
 function parseHand(hand) {
@@ -747,84 +913,70 @@ function tableHTML(scenario, board, hand, phase) {
     return 'active';
   }
 
-  // Build 9 seat nodes. Hero = slot 4 (bottom, angle 90°)
-  // slot k → ALL_POS[(heroIdx + k - 4 + 9) % 9]
   const seatNodes = SEAT_ANGLES.map((deg, slot) => {
     const posIdx = (heroIdx + slot - 4 + 9) % 9;
     const posName = ALL_POS[posIdx];
     const {x, y} = seatXYfromAngle(deg);
-    const pct_x = (x / 400 * 100).toFixed(2);
-    const pct_y = (y / 200 * 100).toFixed(2);
+    const px = (x / 400 * 100).toFixed(2);
+    const py = (y / 200 * 100).toFixed(2);
     const status = seatStatus(posName);
     const label = posName==='UTG+2'?'U+2':posName==='UTG+1'?'U+1':posName;
     const actionLbl = status==='villain' ? 'RAISE 2.5bb' : status==='folded' ? 'FOLD' : '';
-    const subHTML = actionLbl
-      ? `<div class="seat-sub${status==='villain'?' v':''}">${actionLbl}</div>`
+    const subHTML = actionLbl ? `<div class="seat-info${status==='villain'?' v':''}">${actionLbl}</div>` : '';
+    const heroCardsHTML = status==='hero'
+      ? `<div class="seat-cards">${(hand||[]).map(c=>cardHTML(c,'sm')).join('') || '<div class="card sm back"></div><div class="card sm back"></div>'}</div>`
       : '';
-    const heroCards = status==='hero' && hand
-      ? `<div class="seat-hero-cards">${hand.map(c=>cardHTML(c,'sm')).join('')}</div>`
-      : status==='hero'
-      ? `<div class="seat-hero-cards"><div class="card sm back"></div><div class="card sm back"></div></div>`
-      : '';
-    return `<div class="seat-node ${status}" style="left:${pct_x}%;top:${pct_y}%;">
-      <div class="seat-label">${label}</div>${subHTML}${heroCards}
+    return `<div class="seat ${status}" style="left:${px}%;top:${py}%;">
+      <div class="seat-name">${label}</div>${subHTML}${heroCardsHTML}
     </div>`;
   }).join('');
 
-  // Dealer chip near BTN
+  // Dealer chip
   const btnSlot = (ALL_POS.indexOf('BTN') - heroIdx + 4 + 9) % 9;
-  const btnAngle = SEAT_ANGLES[btnSlot];
-  const btnRad = btnAngle * Math.PI / 180;
-  const chipX = ((200 + 160 * Math.cos(btnRad)) / 400 * 100).toFixed(2);
-  const chipY = ((90  + 72  * Math.sin(btnRad)) / 200 * 100).toFixed(2);
-  const dealerChip = `<div class="d-chip" style="left:${chipX}%;top:${chipY}%;">D</div>`;
+  const btnRad = SEAT_ANGLES[btnSlot] * Math.PI / 180;
+  const chipX = ((200 + 155 * Math.cos(btnRad)) / 400 * 100).toFixed(2);
+  const chipY = ((100 + 68  * Math.sin(btnRad)) / 200 * 100).toFixed(2);
+  const dealerChip = `<div class="d-btn" style="left:${chipX}%;top:${chipY}%;">D</div>`;
 
-  // Board cards
-  const boardSlots = [0,1,2,3,4].map(i => {
-    if(board && board[i])
-      return `<div class="board-card-wrap" style="animation-delay:${i*0.07}s">${cardHTML(board[i],'sm')}</div>`;
-    const show = false; // no placeholders
-    return show ? '' : '';
-  }).join('');
+  // Board cards centered on felt
+  const boardCards = (board||[]).map((c,i) =>
+    `<div class="deal-anim" style="animation-delay:${i*0.07}s">${cardHTML(c,'sm')}</div>`
+  ).join('');
+  const boardOverlay = boardCards
+    ? `<div style="position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);display:flex;gap:5px;align-items:center;">${boardCards}</div>`
+    : '';
 
   const pot = scenario.flopPotBB || 5.5;
 
-  // SVG oval — lighter blue tones
-  const svgTable = `<svg class="table-svg" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+  const isDark = document.body.classList.contains('dark');
+  const feltA = isDark ? '#1a2d52' : '#213a72';
+  const feltB = isDark ? '#111e3a' : '#182d58';
+  const railFill = isDark ? '#080c18' : '#10192e';
+  const railStroke = isDark ? '#1a2550' : '#233566';
+
+  const svgEl = `<svg class="table-svg-el" viewBox="0 0 400 210" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <radialGradient id="feltGrad" cx="50%" cy="50%" r="55%">
-        <stop offset="0%" stop-color="#2a4080"/>
-        <stop offset="100%" stop-color="#1a2d60"/>
+      <radialGradient id="fg" cx="50%" cy="45%" r="60%">
+        <stop offset="0%" stop-color="${feltA}"/>
+        <stop offset="100%" stop-color="${feltB}"/>
       </radialGradient>
-      <filter id="innerShadow">
-        <feFlood flood-color="rgba(0,0,0,0.4)" result="color"/>
-        <feComposite in="color" in2="SourceGraphic" operator="in" result="shadow"/>
-        <feGaussianBlur in="shadow" stdDeviation="6"/>
-        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      <filter id="is" x="-10%" y="-10%" width="120%" height="120%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="blur"/>
+        <feOffset dx="0" dy="2" result="offsetBlur"/>
+        <feComposite in="SourceGraphic" in2="offsetBlur" operator="over"/>
       </filter>
     </defs>
-    <!-- Rail -->
-    <ellipse cx="200" cy="100" rx="196" ry="96" fill="#182040" stroke="#2e4880" stroke-width="2"/>
-    <!-- Felt -->
-    <ellipse cx="200" cy="100" rx="183" ry="84" fill="url(#feltGrad)"/>
-    <!-- Inner shadow hint -->
-    <ellipse cx="200" cy="100" rx="183" ry="84" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="8"/>
-    <!-- Brand -->
-    <text x="200" y="104" text-anchor="middle" font-family="Inter,sans-serif" font-size="8" font-weight="300" fill="rgba(255,255,255,0.06)" letter-spacing="5">GTOSIM.NO</text>
-    <!-- Pot -->
-    <text x="200" y="62" text-anchor="middle" font-family="Inter,sans-serif" font-size="6" fill="rgba(255,255,255,0.22)" letter-spacing="2">POT</text>
-    <text x="200" y="78" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.75)">${pot}bb</text>
+    <ellipse cx="200" cy="105" rx="197" ry="100" fill="${railFill}" stroke="${railStroke}" stroke-width="2.5"/>
+    <ellipse cx="200" cy="105" rx="184" ry="88" fill="url(#fg)"/>
+    <ellipse cx="200" cy="105" rx="184" ry="88" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="10"/>
+    <text x="200" y="109" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="300" fill="rgba(255,255,255,0.05)" letter-spacing="5">GTOSIM.NO</text>
+    <text x="200" y="68" text-anchor="middle" font-family="Inter,sans-serif" font-size="6" fill="rgba(255,255,255,0.2)" letter-spacing="2">POT</text>
+    <text x="200" y="82" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="500" fill="rgba(255,255,255,0.7)">${pot}bb</text>
   </svg>`;
 
-  // Board cards overlay (centered in SVG area)
-  const boardOverlay = `<div style="position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);display:flex;gap:4px;pointer-events:none;align-items:center;">
-    ${boardSlots}
-  </div>`;
-
-  return `
-  <div class="table-wrap">
-    ${svgTable}
-    <div class="table-seats">
+  return `<div class="table-scene">
+    ${svgEl}
+    <div class="table-overlay">
       ${boardOverlay}
       ${dealerChip}
       ${seatNodes}
@@ -1011,11 +1163,12 @@ function rangeTableHTML(scenario, hand) {
   const title = `${pos}${villain?' vs '+villain:''} — Range`;
   return `
   <div class="range-accordion mobile-range">
-    <button class="range-toggle" onclick="toggleRange(this)" id="range-btn">
-      <span>📋 ${title}</span>
+    <button class="range-header" onclick="toggleRange(this)">
+      <span>${title}</span>
       <span class="range-chevron" id="range-chevron">▾</span>
     </button>
     <div class="range-body" id="range-box">
+      <div class="range-grid-title">${title}</div>
       ${handGridHTML(scenario, hand)}
     </div>
   </div>`;
@@ -1027,7 +1180,6 @@ function toggleRange(btn) {
   if(!body) return;
   const open = body.classList.toggle('open');
   if(chevron) chevron.classList.toggle('open', open);
-  if(btn) btn.classList.toggle('open', open);
 }
 
 // ── VILLAIN ACTION ENGINE ─────────────────────────────────────────────────────
@@ -1162,9 +1314,9 @@ function renderPhase() {
   const siPot=document.getElementById('si-pot'); if(siPot) siPot.textContent=pot+'bb';
   const siOop=document.getElementById('si-oop'); if(siOop) siOop.textContent=scenario.flopPos==='IP'?'In Position':'Out of Position';
 
-  const progress=streets.map((s,i)=>`<span class="s-dot ${i<si?'done':i===si?'cur':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
+  const progress=streets.map((s,i)=>`<span class="street-pip ${i<si?'done':i===si?'cur':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
   let html=`<div class="streets">${progress}</div>`;
-  html+=`<div class="s-badge"><span class="badge-main">${scenario.tag}</span><span class="badge-sub">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
+  html+=`<div class="scenario-row"><span class="tag-main">${scenario.tag}</span><span class="tag-sub">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
 
   // Table with board cards and hero cards embedded
   html += tableHTML(scenario, board, hand, phase);
@@ -1188,14 +1340,14 @@ function renderPhase() {
     evalFn=(a)=>scenario.riverEval(hand,board,a,state.prevActions);
   }
 
-  html+=`<div class="action-panel">`;
+  html+=`<div class="action-area">`;
 
   // Show hand clearly below table
   if(board.length > 0) {
     html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-right:2px;">Hånd</div>
+      <div style="font-size:9px;color:var(--c-text-3);text-transform:uppercase;letter-spacing:0.08em;margin-right:2px;">Hånd</div>
       ${hand.map(c=>cardHTML(c)).join('')}
-      <span style="color:var(--border);margin:0 2px;">|</span>
+      <span style="color:var(--c-border);margin:0 2px;">|</span>
       ${board.map(c=>cardHTML(c)).join('')}
     </div>`;
   }
@@ -1207,7 +1359,7 @@ function renderPhase() {
     if(sr) sr.innerHTML=handGridHTML(scenario,hand);
   } else {
     const sr=document.getElementById('sidebar-range-content');
-    if(sr) sr.innerHTML='<span style="font-size:10px;color:var(--text3)">Kun tilgjengelig på preflop</span>';
+    if(sr) sr.innerHTML='<span style="font-size:10px;color:var(--c-text-3)">Kun tilgjengelig på preflop</span>';
   }
 
   // Villain action
@@ -1215,15 +1367,15 @@ function renderPhase() {
   const heroIsOOP=scenario.flopPos==='OOP';
   if(phase!=='preflop'&&vBet) {
     const vl=scenario.villain||'Motstander';
-    html+=`<div class="villain-act villain-bet">💬 <strong>${vl}</strong> better <strong>${vBet}</strong> av pot</div>`;
-    html+=`<div class="act-row" id="actions">${['Fold','Call','Raise 2.5x'].map(a=>`<button class="act-btn ${btnClass(a)}" onclick="answerFacing('${a}')">${a}</button>`).join('')}</div>`;
+    html+=`<div class="villain-msg bet">💬 <strong>${vl}</strong> better <strong>${vBet}</strong> av pot</div>`;
+    html+=`<div class="action-row" id="actions">${['Fold','Call','Raise 2.5x'].map(a=>`<button class="act ${btnClass(a)}" onclick="answerFacing('${a}')">${a}</button>`).join('')}</div>`;
   } else {
     if(phase!=='preflop'&&heroIsOOP) {
       const vl=scenario.villain||'Motstander';
-      html+=`<div class="villain-act villain-chk">💬 <strong>${vl}</strong> checker til deg</div>`;
+      html+=`<div class="villain-msg check">💬 <strong>${vl}</strong> checker til deg</div>`;
     }
-    html+=`<p class="situation">${desc}</p>`;
-    html+=`<div class="act-row" id="actions">${actions.map(a=>`<button class="act-btn ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
+    html+=`<p class="situation-text">${desc}</p>`;
+    html+=`<div class="action-row" id="actions">${actions.map(a=>`<button class="act ${btnClass(a)}" onclick="answer('${a}')">${a}</button>`).join('')}</div>`;
   }
   html+=`<div id="result"></div></div>`;
   document.getElementById('app').innerHTML=html;
@@ -1249,9 +1401,9 @@ function answerFacing(act) {
   const isLast=phase==='river'||isFold;
 
   let btns='';
-  if(!isLast) btns+=`<button class="next-btn" onclick="nextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
-  btns+=`<button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
-  if(isLast) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
+  if(!isLast) btns+=`<button class="btn-primary" onclick="nextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
+  btns+=`<button class="btn-secondary" onclick="newHand()">Ny hånd</button>`;
+  if(isLast) btns=`<button class="btn-primary" onclick="showSummary()">Se oppsummering →</button><button class="btn-secondary" onclick="newHand()">Ny hånd</button>`;
 
   document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div><div class="btn-row">${btns}</div>`;
   updateScore();
@@ -1279,10 +1431,10 @@ function answer(act) {
 
   let btns='';
   if(!isLastStreet&&!isPreflopFold) {
-    btns+=`<button class="next-btn" onclick="nextStreet('${nextStreet}')">Neste: ${nextStreet.charAt(0).toUpperCase()+nextStreet.slice(1)} →</button>`;
+    btns+=`<button class="btn-primary" onclick="nextStreet('${nextStreet}')">Neste: ${nextStreet.charAt(0).toUpperCase()+nextStreet.slice(1)} →</button>`;
   }
-  btns+=`<button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
-  if(isLastStreet||isPreflopFold) btns=`<button class="next-btn" onclick="showSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newHand()">Ny hånd</button>`;
+  btns+=`<button class="btn-secondary" onclick="newHand()">Ny hånd</button>`;
+  if(isLastStreet||isPreflopFold) btns=`<button class="btn-primary" onclick="showSummary()">Se oppsummering →</button><button class="btn-secondary" onclick="newHand()">Ny hånd</button>`;
 
   document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div><div class="btn-row">${btns}</div>`;
   updateScore();
@@ -1323,13 +1475,13 @@ function showSummary() {
   const good=handScore.filter(q=>q==='good').length;
   const total=handScore.length;
   document.getElementById('app').innerHTML=`
-    <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:8px">Håndoppsummering</div>
-    <div style="background:var(--surface);border-radius:8px;border:1px solid var(--border);padding:12px 14px;margin-bottom:10px">
+    <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--c-text-3);margin-bottom:8px">Håndoppsummering</div>
+    <div style="background:var(--c-surface);border-radius:8px;border:1px solid var(--c-border);padding:12px 14px;margin-bottom:10px">
       ${rows}
-      <div style="margin-top:8px;font-size:12px;color:var(--text2)">Riktige: <strong>${good}/${total}</strong></div>
+      <div style="margin-top:8px;font-size:12px;color:var(--c-text-2)">Riktige: <strong>${good}/${total}</strong></div>
     </div>
-    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">${hand.map(c=>cardHTML(c)).join('')}${board.length?`<span style="color:var(--border);font-size:18px;margin:0 3px;align-self:center">|</span>${board.map(c=>cardHTML(c,'sm')).join('')}`:''}</div>
-    <button class="next-btn" onclick="newHand()">Ny hånd</button>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">${hand.map(c=>cardHTML(c)).join('')}${board.length?`<span style="color:var(--c-border);font-size:18px;margin:0 3px;align-self:center">|</span>${board.map(c=>cardHTML(c,'sm')).join('')}`:''}</div>
+    <button class="btn-primary" onclick="newHand()">Ny hånd</button>
   `;
   updateScore();
 }
@@ -1346,9 +1498,9 @@ function btnClass(a) {
 function updateScore() {
   const total=score.correct+score.ok+score.wrong;
   document.getElementById('scoreboard').innerHTML=total===0?'':`
-    <div class="m-pill"><div class="n" style="color:var(--good-fg)">${score.correct}</div><div class="l">Riktig</div></div>
-    <div class="m-pill"><div class="n" style="color:var(--ok-fg)">${score.ok}</div><div class="l">Marginal</div></div>
-    <div class="m-pill"><div class="n" style="color:var(--bad-fg)">${score.wrong}</div><div class="l">Feil</div></div>`;
+    <div class="m-score-pill"><div class="n" style="color:var(--c-good)">${score.correct}</div><div class="l">Riktig</div></div>
+    <div class="m-score-pill"><div class="n" style="color:var(--c-ok)">${score.ok}</div><div class="l">Marginal</div></div>
+    <div class="m-score-pill"><div class="n" style="color:var(--c-bad)">${score.wrong}</div><div class="l">Feil</div></div>`;
   const sc=document.getElementById('s-correct');
   if(sc){sc.textContent=score.correct;document.getElementById('s-ok').textContent=score.ok;document.getElementById('s-wrong').textContent=score.wrong;}
 }
@@ -1588,7 +1740,7 @@ function renderExploit() {
   const {persona, hand, board, phase, scenario} = exploitState;
   const streets = ['preflop','flop','turn','river'];
   const si = streets.indexOf(phase);
-  const progress = streets.map((s,i)=>`<span class="s-dot ${i<si?'done':i===si?'cur':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
+  const progress = streets.map((s,i)=>`<span class="street-pip ${i<si?'done':i===si?'cur':''}">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('');
 
   let actions;
   if(phase==='preflop') actions = scenario.preflopActions;
@@ -1599,28 +1751,28 @@ function renderExploit() {
   const pot = phase==='preflop' ? scenario.flopPotBB : calcPot(scenario.flopPotBB, exploitState.prevActions.slice(1));
 
   let html = `<div class="streets">${progress}</div>`;
-  html += `<div class="s-badge"><span class="badge-main">${scenario.tag}</span><span class="badge-sub">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
+  html += `<div class="scenario-row"><span class="tag-main">${scenario.tag}</span><span class="tag-sub">${phase.charAt(0).toUpperCase()+phase.slice(1)}</span></div>`;
   html += tableHTML(scenario, board, hand, phase);
 
-  html += `<div class="action-panel">`;
+  html += `<div class="action-area">`;
   html += `<div class="persona-banner" style="background:${persona.color}12;border-color:${persona.color}30;margin-bottom:8px;">
     <div style="font-size:13px;font-weight:600;color:${persona.color}">${persona.name}</div>
-    <div style="font-size:11px;color:var(--text2);margin-top:2px">${persona.desc}</div>
+    <div style="font-size:11px;color:var(--c-text-2);margin-top:2px">${persona.desc}</div>
   </div>`;
 
-  if(phase==='preflop') html+=`<p class="situation">${scenario.preflopDesc}</p>`;
-  else html+=`<p class="situation">Pot: ~${pot}bb. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}.</p>`;
+  if(phase==='preflop') html+=`<p class="situation-text">${scenario.preflopDesc}</p>`;
+  else html+=`<p class="situation-text">Pot: ~${pot}bb. Du er ${scenario.flopPos==='IP'?'IP':'OOP'}.</p>`;
 
   const vBet = exploitState.villainBet;
   const heroIsOOP = scenario.flopPos === 'OOP';
   if(phase !== 'preflop' && vBet) {
-    html += `<div class="villain-act villain-bet">💬 <strong>${persona.name}</strong> better <strong>${vBet}</strong> av pot</div>`;
-    html += `<div class="act-row" id="actions">${['Fold','Call','Raise 2.5x'].map(a=>`<button class="act-btn ${btnClass(a)}" onclick="exploitAnswerFacing('${a}')">${a}</button>`).join('')}</div>`;
+    html += `<div class="villain-msg bet">💬 <strong>${persona.name}</strong> better <strong>${vBet}</strong> av pot</div>`;
+    html += `<div class="action-row" id="actions">${['Fold','Call','Raise 2.5x'].map(a=>`<button class="act ${btnClass(a)}" onclick="exploitAnswerFacing('${a}')">${a}</button>`).join('')}</div>`;
   } else {
     if(phase !== 'preflop' && heroIsOOP) {
-      html += `<div class="villain-act villain-chk">💬 <strong>${persona.name}</strong> checker til deg</div>`;
+      html += `<div class="villain-msg check">💬 <strong>${persona.name}</strong> checker til deg</div>`;
     }
-    html += `<div class="act-row" id="actions">${actions.map(a=>`<button class="act-btn ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
+    html += `<div class="action-row" id="actions">${actions.map(a=>`<button class="act ${btnClass(a)}" onclick="exploitAnswer('${a}')">${a}</button>`).join('')}</div>`;
   }
   html += `<div id="result"></div></div>`;
   document.getElementById('app').innerHTML = html;
@@ -1645,9 +1797,9 @@ function exploitAnswerFacing(act) {
   const isLast=phase==='river'||isFold;
 
   let btns='';
-  if(!isLast) btns+=`<button class="next-btn" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
-  btns+=`<button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
-  if(isLast) btns=`<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  if(!isLast) btns+=`<button class="btn-primary" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
+  btns+=`<button class="btn-secondary" onclick="newExploitHand()">Ny hånd</button>`;
+  if(isLast) btns=`<button class="btn-primary" onclick="showExploitSummary()">Se oppsummering →</button><button class="btn-secondary" onclick="newExploitHand()">Ny hånd</button>`;
 
   document.getElementById('result').innerHTML=`<div class="${cls}">${res.msg}</div><div class="btn-row">${btns}</div>`;
   updateScore();
@@ -1680,9 +1832,9 @@ function exploitAnswer(act) {
   exploitState.handScore.push(q);
 
   let btns = '';
-  if(!isLast) btns += `<button class="next-btn" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
-  btns += `<button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
-  if(isLast) btns = `<button class="next-btn" onclick="showExploitSummary()">Se oppsummering →</button><button class="sec-btn" onclick="newExploitHand()">Ny hånd</button>`;
+  if(!isLast) btns += `<button class="btn-primary" onclick="exploitNextStreet('${nextSt}')">Neste: ${nextSt.charAt(0).toUpperCase()+nextSt.slice(1)} →</button>`;
+  btns += `<button class="btn-secondary" onclick="newExploitHand()">Ny hånd</button>`;
+  if(isLast) btns = `<button class="btn-primary" onclick="showExploitSummary()">Se oppsummering →</button><button class="btn-secondary" onclick="newExploitHand()">Ny hånd</button>`;
 
   document.getElementById('result').innerHTML = `<div class="${cls}">${label} ${tip}</div>${btns}`;
   updateScore();
@@ -1708,23 +1860,21 @@ function showExploitSummary() {
       <div style="margin-top:10px;font-size:13px;color:#555">Riktige exploit-valg: <strong>${good}/${handScore.length}</strong></div>
     </div>
     <div class="hand-row">${hand.map(c=>cardHTML(c)).join('')}${board.length?`<span style="color:#aaa;font-size:18px;margin:0 4px">|</span>${board.map(c=>cardHTML(c)).join('')}`:''}</div>
-    <button class="next-btn" onclick="newExploitHand()" style="margin-top:14px">Ny hånd</button>
+    <button class="btn-primary" onclick="newExploitHand()" style="margin-top:14px">Ny hånd</button>
   `;
   updateScore();
 }
 
 function toggleAbout() {
-  const m = document.getElementById('about-modal');
-  m.style.display = m.style.display === 'none' ? 'flex' : 'none';
+  document.getElementById('about-modal').classList.toggle('open');
 }
 
 function toggleSidebarRange() {
   const el = document.getElementById('sidebar-range-content');
   const ch = document.getElementById('sb-range-chevron');
   if(!el) return;
-  const open = el.style.display === 'none';
-  el.style.display = open ? 'block' : 'none';
-  if(ch) ch.textContent = open ? '▴' : '▾';
+  const open = el.classList.toggle('open');
+  if(ch) ch.classList.toggle('open', open);
 }
 
 function toggleDark() {
